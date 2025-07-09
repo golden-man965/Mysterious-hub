@@ -30,12 +30,26 @@ local Window = Rayfield:CreateWindow({
     }
 })
 
-local UniversalTab = Window:CreateTab("universal script", "globe")
-local Section = UniversalTab:CreateSection("👽script universal Pilihan👾")
+local UniversalTab = Window:CreateTab("Brookhaven script", "globe")
+local Section = UniversalTab:CreateSection("👽script👾")
 
 local Button = UniversalTab:CreateButton({
     Name = "infinity yield",
     Callback = function()
         loadstring(game:HttpGet("https://rawscripts.net/raw/Infinite-Yield_500"))()
     end,
+})
+
+local Button = UniversalTab:CreateButton({
+   Name = "REDzHUB",
+   Callback = function()
+   loadstring(game:HttpGet("https://raw.githubusercontent.com/REDzHUB/REDzHUB/main/REDzHUB"))()
+   end,
+})
+
+Rayfield:Notify({
+   Title = "Notification",
+   Content = "Mysterious Hub Successfully loaded",
+   Duration = 3,
+   Image = 0,
 })
