@@ -1,0 +1,41 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+    Name = "Mysterious hub",
+    Icon = "file-code-2", -- Harus string (Lucide icon), atau angka (Roblox asset ID)
+    LoadingTitle = "Mysterious hub loading!",
+    LoadingSubtitle = "Coded by : dark sistem",
+    ShowText = "Rayfield", 
+    Theme = "DarkBlue", -- Cek di https://docs.sirius.menu/rayfield/configuration/themes
+    ToggleUIKeybind = "K",
+
+    DisableRayfieldPrompts = false,
+    DisableBuildWarnings = false,
+
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "Mysterious", -- Harus string, tidak boleh pakai tanda tanya
+        FileName = "Mysterious Hub"
+    },
+
+    KeySystem = true,
+    KeySettings = {
+        Title = "Mysterious Hub",
+        Subtitle = "Key System",
+        Note = "JOIN WHATSAPP GROUP: https://chat.whatsapp.com/FV0MoulxZ6SEeppU8qKmMh?mode=ac_t",
+        FileName = "Key",
+        SaveKey = false,
+        GrabKeyFromSite = false,
+        Key = {"LOL11"} -- List key yang diterima
+    }
+})
+
+local UniversalTab = Window:CreateTab("universal script", "globe")
+local Section = UniversalTab:CreateSection("👽script universal Pilihan👾")
+
+local Button = UniversalTab:CreateButton({
+    Name = "infinity yield",
+    Callback = function()
+        loadstring(game:HttpGet("https://rawscripts.net/raw/Infinite-Yield_500"))()
+    end,
+})
