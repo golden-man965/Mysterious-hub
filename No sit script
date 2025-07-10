@@ -1,38 +1,46 @@
-local noSitEnabled = false
+-- No Sit Script with GUI Toggle
+local player = game:GetService("Players").LocalPlayer
+local uis = game:GetService("UserInputService")
 
-RegisterCommand("opennosit", function()
-    SetNuiFocus(true, true)
-    SendNUIMessage({ type = "showUI", status = true, active = noSitEnabled })
+-- Status awal
+local noSitEnabled = true
+
+-- Fungsi utama: Cegah duduk
+task.spawn(function()
+	while true do
+		task.wait(0.1)
+		if noSitEnabled then
+			local char = player.Character
+			if char and char:FindFirstChild("Humanoid") then
+				if char.Humanoid.Sit then
+					char.Humanoid.Sit = false
+				end
+			end
+		end
+	end
 end)
 
-RegisterNUICallback("closeUI", function(_, cb)
-    SetNuiFocus(false, false)
-    cb("ok")
-end)
+-- GUI Setup
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+ScreenGui.Name = "NoSitToggleGUI"
 
-RegisterNUICallback("toggleNoSit", function(data, cb)
-    noSitEnabled = data.enabled
-    cb("ok")
-end)
+local Frame = Instance.new("Frame", ScreenGui)
+Frame.Size = UDim2.new(0, 150, 0, 50)
+Frame.Position = UDim2.new(0, 100, 0, 100)
+Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Frame.Active = true
+Frame.Draggable = true
 
-Citizen.CreateThread(function()
-    while true do
-        Citizen.Wait(500)
-        if noSitEnabled then
-            local ped = PlayerPedId()
-            local scenarios = {
-                "WORLD_HUMAN_PICNIC",
-                "WORLD_HUMAN_SEAT_LEDGE",
-                "WORLD_HUMAN_SEAT_WALL",
-                "PROP_HUMAN_SEAT_CHAIR",
-                "PROP_HUMAN_SEAT_BENCH"
-            }
-            for _, s in pairs(scenarios) do
-                if IsPedUsingScenario(ped, s) then
-                    ClearPedTasks(ped)
-                    break
-                end
-            end
-        end
-    end
+local ToggleButton = Instance.new("TextButton", Frame)
+ToggleButton.Size = UDim2.new(1, 0, 1, 0)
+ToggleButton.Text = "No Sit: ON"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+ToggleButton.Font = Enum.Font.SourceSansBold
+ToggleButton.TextSize = 20
+
+ToggleButton.MouseButton1Click:Connect(function()
+	noSitEnabled = not noSitEnabled
+	ToggleButton.Text = "No Sit: " .. (noSitEnabled and "ON" or "OFF")
+	ToggleButton.BackgroundColor3 = noSitEnabled and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(170, 0, 0)
 end)
