@@ -1,0 +1,38 @@
+local noSitEnabled = false
+
+RegisterCommand("opennosit", function()
+    SetNuiFocus(true, true)
+    SendNUIMessage({ type = "showUI", status = true, active = noSitEnabled })
+end)
+
+RegisterNUICallback("closeUI", function(_, cb)
+    SetNuiFocus(false, false)
+    cb("ok")
+end)
+
+RegisterNUICallback("toggleNoSit", function(data, cb)
+    noSitEnabled = data.enabled
+    cb("ok")
+end)
+
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(500)
+        if noSitEnabled then
+            local ped = PlayerPedId()
+            local scenarios = {
+                "WORLD_HUMAN_PICNIC",
+                "WORLD_HUMAN_SEAT_LEDGE",
+                "WORLD_HUMAN_SEAT_WALL",
+                "PROP_HUMAN_SEAT_CHAIR",
+                "PROP_HUMAN_SEAT_BENCH"
+            }
+            for _, s in pairs(scenarios) do
+                if IsPedUsingScenario(ped, s) then
+                    ClearPedTasks(ped)
+                    break
+                end
+            end
+        end
+    end
+end)
