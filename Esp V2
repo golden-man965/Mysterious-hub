@@ -1,0 +1,225 @@
+-- == CONFIG == --
+local validKey = "Prri123"
+local targetPrefix = "afz"
+local hopDelay = 6 -- detik antar server hop
+
+-- == LIBRARY & UTILS == --
+local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local LocalPlayer = Players.LocalPlayer
+
+local function httpGet(url)
+    local res = nil
+    if syn and syn.request then
+        res = syn.request({Url = url, Method = "GET"})
+    elseif http_request then
+        res = http_request({Url = url, Method = "GET"})
+    elseif request then
+        res = request({Url = url, Method = "GET"})
+    end
+    return res and res.Body or nil
+end
+
+local function detectAFZPlayer()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and string.lower(player.Name):sub(1, #targetPrefix) == targetPrefix then
+            return true
+        end
+    end
+    return false
+end
+
+local function serverHop()
+    local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+    local body = httpGet(url)
+    if not body then return end
+
+    local data = HttpService:JSONDecode(body)
+    for _, server in pairs(data.data) do
+        if server.playing < server.maxPlayers and server.id ~= game.JobId then
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, LocalPlayer)
+            break
+        end
+    end
+end
+
+local function autoHopUntilAFZ()
+    while true do
+        if detectAFZPlayer() then
+            print("[AUTO-HOP] Ditemukan player afz di server ini.")
+            break
+        end
+        print("[AUTO-HOP] Tidak ada player afz, teleporting...")
+        serverHop()
+        wait(hopDelay)
+    end
+end
+
+-- == GUI SYSTEM == --
+local function createKeyGUI()
+    local gui = Instance.new("ScreenGui", game.CoreGui)
+    gui.Name = "KeySystem"
+
+    local frame = Instance.new("Frame", gui)
+    frame.Size = UDim2.new(0, 250, 0, 120)
+    frame.Position = UDim2.new(0.5, -125, 0.5, -60)
+    frame.BackgroundColor3 = Color3.new(0, 0, 0)
+
+    local title = Instance.new("TextLabel", frame)
+    title.Size = UDim2.new(1, 0, 0, 30)
+    title.Text = "Enter Key to Access ESP"
+    title.TextColor3 = Color3.new(1, 1, 1)
+    title.Font = Enum.Font.SourceSansBold
+    title.TextScaled = true
+    title.BackgroundTransparency = 1
+
+    local textbox = Instance.new("TextBox", frame)
+    textbox.Size = UDim2.new(1, -20, 0, 30)
+    textbox.Position = UDim2.new(0, 10, 0, 40)
+    textbox.PlaceholderText = "Enter Key..."
+    textbox.Text = ""
+    textbox.TextColor3 = Color3.new(1, 1, 1)
+    textbox.BackgroundColor3 = Color3.new(0.15, 0.15, 0.15)
+    textbox.TextScaled = true
+    textbox.Font = Enum.Font.SourceSans
+
+    local button = Instance.new("TextButton", frame)
+    button.Size = UDim2.new(1, -20, 0, 30)
+    button.Position = UDim2.new(0, 10, 0, 80)
+    button.Text = "Submit"
+    button.TextColor3 = Color3.new(1, 1, 1)
+    button.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
+    button.TextScaled = true
+    button.Font = Enum.Font.SourceSansBold
+
+    button.MouseButton1Click:Connect(function()
+        if textbox.Text == validKey then
+            gui:Destroy()
+            spawn(loadMainGUI)
+        else
+            textbox.Text = ""
+            textbox.PlaceholderText = "Wrong key!"
+        end
+    end)
+end
+
+function loadMainGUI()
+    local gui = Instance.new("ScreenGui", game.CoreGui)
+    gui.Name = "ESP_GUI"
+
+    local frame = Instance.new("Frame", gui)
+    frame.Size = UDim2.new(0, 200, 0, 140)
+    frame.Position = UDim2.new(0, 20, 0, 100)
+    frame.BackgroundColor3 = Color3.new(0, 0, 0)
+    frame.Active = true
+    frame.Draggable = true
+
+    local title = Instance.new("TextLabel", frame)
+    title.Size = UDim2.new(1, 0, 0, 30)
+    title.Text = "ANTI AFZ ESP"
+    title.TextColor3 = Color3.new(1, 1, 1)
+    title.BackgroundTransparency = 1
+    title.Font = Enum.Font.SourceSansBold
+    title.TextScaled = true
+
+    local toggle = Instance.new("TextButton", frame)
+    toggle.Size = UDim2.new(1, -10, 0, 30)
+    toggle.Position = UDim2.new(0, 5, 0, 35)
+    toggle.Text = "ESP: OFF"
+    toggle.TextColor3 = Color3.new(1, 1, 1)
+    toggle.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
+    toggle.TextScaled = true
+    toggle.Font = Enum.Font.SourceSans
+
+    local hop = Instance.new("TextButton", frame)
+    hop.Size = UDim2.new(1, -10, 0, 30)
+    hop.Position = UDim2.new(0, 5, 0, 75)
+    hop.Text = "Auto Server Hop"
+    hop.TextColor3 = Color3.new(1, 1, 1)
+    hop.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
+    hop.TextScaled = true
+    hop.Font = Enum.Font.SourceSans
+
+    local credit = Instance.new("TextLabel", frame)
+    credit.Size = UDim2.new(1, -10, 0, 20)
+    credit.Position = UDim2.new(0, 5, 0, 115)
+    credit.Text = "Created by Dark Sistem"
+    credit.BackgroundTransparency = 1
+    credit.TextColor3 = Color3.new(1, 1, 1)
+    credit.Font = Enum.Font.SourceSans
+    credit.TextScaled = true
+
+    -- ESP logic
+    local espEnabled = false
+    local espObjects = {}
+    local RunService = game:GetService("RunService")
+
+    local function clearESP()
+        for _, v in pairs(espObjects) do
+            if v.label then v.label:Destroy() end
+        end
+        espObjects = {}
+    end
+
+    RunService.RenderStepped:Connect(function()
+        if not espEnabled then
+            clearESP()
+            return
+        end
+
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                if string.sub(string.lower(player.Name), 1, 3) == targetPrefix then
+                    local hrp = player.Character.HumanoidRootPart
+                    local distance = (LocalPlayer.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
+
+                    if not espObjects[player] then
+                        local billboard = Instance.new("BillboardGui", hrp)
+                        billboard.Adornee = hrp
+                        billboard.Size = UDim2.new(0, 200, 0, 50)
+                        billboard.StudsOffset = Vector3.new(0, 3, 0)
+                        billboard.AlwaysOnTop = true
+
+                        local label = Instance.new("TextLabel", billboard)
+                        label.Size = UDim2.new(1, 0, 1, 0)
+                        label.BackgroundTransparency = 1
+                        label.TextColor3 = Color3.new(1, 0, 0)
+                        label.TextScaled = true
+                        label.Font = Enum.Font.SourceSansBold
+                        label.Text = player.Name .. " | " .. math.floor(distance) .. "m"
+
+                        espObjects[player] = {gui = billboard, label = label}
+                    else
+                        espObjects[player].label.Text = player.Name .. " | " .. math.floor(distance) .. "m"
+                    end
+                elseif espObjects[player] then
+                    espObjects[player].label:Destroy()
+                    espObjects[player] = nil
+                end
+            end
+        end
+    end)
+
+    toggle.MouseButton1Click:Connect(function()
+        espEnabled = not espEnabled
+        toggle.Text = espEnabled and "ESP: ON" or "ESP: OFF"
+        if not espEnabled then
+            clearESP()
+        end
+    end)
+
+    hop.MouseButton1Click:Connect(function()
+        hop.Text = "Hopping..."
+        hop.AutoButtonColor = false
+        -- jalankan auto server hop sampai ketemu player "afz"
+        spawn(function()
+            autoHopUntilAFZ()
+            hop.Text = "Auto Server Hop"
+            hop.AutoButtonColor = true
+        end)
+    end)
+end
+
+-- MULAI SCRIPT
+createKeyGUI()
