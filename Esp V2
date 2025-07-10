@@ -9,6 +9,8 @@ local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
+local visitedServers = {}
+
 local function httpGet(url)
     local res = nil
     if syn and syn.request then
@@ -24,6 +26,7 @@ end
 local function detectAFZPlayer()
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and string.lower(player.Name):sub(1, #targetPrefix) == targetPrefix then
+            warn("[DETECTED] Player dengan prefix 'afz': " .. player.Name)
             return true
         end
     end
@@ -33,15 +36,23 @@ end
 local function serverHop()
     local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
     local body = httpGet(url)
-    if not body then return end
+    if not body then 
+        warn("[serverHop] Gagal mendapatkan data server")
+        return false
+    end
 
     local data = HttpService:JSONDecode(body)
     for _, server in pairs(data.data) do
-        if server.playing < server.maxPlayers and server.id ~= game.JobId then
+        if server.playing < server.maxPlayers and server.id ~= game.JobId and not visitedServers[server.id] then
+            visitedServers[server.id] = true
+            warn("[serverHop] Melakukan teleport ke server: " .. server.id)
             TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, LocalPlayer)
-            break
+            return true
         end
     end
+
+    warn("[serverHop] Tidak ada server baru yang dapat di-hop")
+    return false
 end
 
 local function autoHopUntilAFZ()
@@ -50,8 +61,12 @@ local function autoHopUntilAFZ()
             print("[AUTO-HOP] Ditemukan player afz di server ini.")
             break
         end
-        print("[AUTO-HOP] Tidak ada player afz, teleporting...")
-        serverHop()
+        print("[AUTO-HOP] Tidak ada player afz, teleporting ke server lain...")
+        local success = serverHop()
+        if not success then
+            print("[AUTO-HOP] Gagal menemukan server lain, berhenti mencoba.")
+            break
+        end
         wait(hopDelay)
     end
 end
@@ -170,7 +185,7 @@ function loadMainGUI()
 
         for _, player in pairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                if string.sub(string.lower(player.Name), 1, 3) == targetPrefix then
+                if string.sub(string.lower(player.Name), 1, #targetPrefix) == targetPrefix then
                     local hrp = player.Character.HumanoidRootPart
                     local distance = (LocalPlayer.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
 
