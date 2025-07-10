@@ -5,71 +5,80 @@ local hopDelay = 6 -- detik antar server hop
 
 -- == LIBRARY & UTILS == --
 local Players = game:GetService("Players")
-local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
-local LocalPlayer = Players.LocalPlayer
+local TeleportService = game:GetService("TeleportService")
 
-local visitedServers = {}
+local placeId = game.PlaceId
+local currentJobId = game.JobId
 
-local function httpGet(url)
-    local res = nil
-    if syn and syn.request then
-        res = syn.request({Url = url, Method = "GET"})
-    elseif http_request then
-        res = http_request({Url = url, Method = "GET"})
-    elseif request then
-        res = request({Url = url, Method = "GET"})
-    end
-    return res and res.Body or nil
+local function notify(message)
+    -- Membuat notifikasi sederhana
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Server Hop";
+        Text =  detected afz;
+        Duration = 5;
+    })
 end
 
-local function detectAFZPlayer()
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and string.lower(player.Name):sub(1, #targetPrefix) == targetPrefix then
-            warn("[DETECTED] Player dengan prefix 'afz': " .. player.Name)
+local function checkPlayersInServer(server)
+    -- Mengecek apakah ada player dengan nama berawalan "afz"
+    for _, player in pairs(server.players) do
+        if player.name:lower():sub(1,3) == "afz" then
             return true
         end
     end
     return false
+end
+
+local function getServers(cursor)
+    -- Mendapatkan data server dari API Roblox
+    local url = "https://games.roblox.com/v1/games/" .. tostring(placeId) .. "/servers/Public?sortOrder=Asc&limit=100"
+    if cursor then
+        url = url .. "&cursor=" .. cursor
+    end
+    local success, response = pcall(function()
+        return game:HttpGet(url)
+    end)
+    if success then
+        return HttpService:JSONDecode(response)
+    else
+        warn("Failed to fetch server list ")
+        return nil
+    end
 end
 
 local function serverHop()
-    local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
-    local body = httpGet(url)
-    if not body then 
-        warn("[serverHop] Gagal mendapatkan data server")
-        return false
-    end
-
-    local data = HttpService:JSONDecode(body)
-    for _, server in pairs(data.data) do
-        if server.playing < server.maxPlayers and server.id ~= game.JobId and not visitedServers[server.id] then
-            visitedServers[server.id] = true
-            warn("[serverHop] Melakukan teleport ke server: " .. server.id)
-            TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, LocalPlayer)
-            return true
-        end
-    end
-
-    warn("[serverHop] Tidak ada server baru yang dapat di-hop")
-    return false
-end
-
-local function autoHopUntilAFZ()
+    local cursor = nil
     while true do
-        if detectAFZPlayer() then
-            print("[AUTO-HOP] Ditemukan player afz di server ini.")
+        local serverData = getServers(cursor)
+        if not serverData then
             break
         end
-        print("[AUTO-HOP] Tidak ada player afz, teleporting ke server lain...")
-        local success = serverHop()
-        if not success then
-            print("[AUTO-HOP] Gagal menemukan server lain, berhenti mencoba.")
+
+        cursor = serverData.nextPageCursor
+
+        for _, server in pairs(serverData.data) do
+            if server.playing > 0 and server.id ~= currentJobId then
+                -- Cek apakah ada player awalan afz di server ini
+                if checkPlayersInServer(server) then
+                    notify("Ditemukan server dengan player berawalan 'afz'!")
+                    return -- berhenti hop server
+                else
+                    -- Teleport ke server berikutnya jika tidak ketemu
+                    TeleportService:TeleportToPlaceInstance(placeId, server.id, Players.LocalPlayer)
+                    wait(10) -- tunggu 10 detik sebelum lanjut cek (biar tidak spam)
+                end
+            end
+        end
+
+        if not cursor then
+            notify("There are no other servers to try..")
             break
         end
-        wait(hopDelay)
     end
 end
+
+serverHop()
 
 -- == GUI SYSTEM == --
 local function createKeyGUI()
