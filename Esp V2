@@ -7,7 +7,10 @@ local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local StarterGui = game:GetService("StarterGui")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
+local LocalPlayer = Players.LocalPlayer
 local PlaceId = game.PlaceId
 local targetName = "afz"
 local cursor = ""
@@ -15,234 +18,577 @@ local bestServer = nil
 local highestCount = 0
 local tried = {}
 
+-- THEME SETUP
+local theme = {
+ dark = {
+  bg = Color3.fromRGB(25, 25, 25),
+  text = Color3.fromRGB(230, 230, 230),
+  button = Color3.fromRGB(50, 50, 50),
+  accent = Color3.fromRGB(180, 0, 180),
+  gradientColors = {Color3.fromRGB(255,0,255), Color3.fromRGB(0,255,255), Color3.fromRGB(255,0,255)}
+ },
+ light = {
+  bg = Color3.fromRGB(245, 245, 245),
+  text = Color3.fromRGB(30, 30, 30),
+  button = Color3.fromRGB(200, 200, 200),
+  accent = Color3.fromRGB(180, 0, 180),
+  gradientColors = {Color3.fromRGB(255,0,255), Color3.fromRGB(0,255,255), Color3.fromRGB(255,0,255)}
+ }
+}
+local currentTheme = "dark"
+
+-- == FUNCTIONS == --
+
 function Notify(title, text)
-	StarterGui:SetCore("SendNotification", {
-		Title = server hop,
-		Text = afz di temukan !,
-		Duration = 5
-	})
+ StarterGui:SetCore("SendNotification", {
+  Title = title,
+  Text = text,
+  Duration = 5
+ })
 end
 
+-- Get server list
 function GetServers()
-	local url = "https://games.roblox.com/v1/games/"..PlaceId.."/servers/Public?limit=100"
-	if cursor ~= "" then
-		url = url.."&cursor="..cursor
-	end
-	local response = request({Url = url})
-	if not response.Success then
-		return nil
-	end
-	local data = HttpService:JSONDecode(response.Body)
-	cursor = data.nextPageCursor or ""
-	return data.data or {}
+ local url = "https://games.roblox.com/v1/games/"..PlaceId.."/servers/Public?limit=100"
+ if cursor ~= "" then url = url.."&cursor="..cursor end
+ local response = request and request({Url = url}) or syn and syn.request and syn.request({Url = url}) or error("No HTTP request function found")
+ if not response.Success and not response.Success == nil then
+  return nil
+ end
+ local data = HttpService:JSONDecode(response.Body)
+ cursor = data.nextPageCursor or ""
+ return data.data or {}
 end
 
+-- Count players with targetName in username/displayname
 function HasAFZ(players)
-	local count = 0
-	for _, user in ipairs(players) do
-		local uname = string.lower(user.name or "")
-		local dname = string.lower(user.displayName or "")
-		if string.find(uname, targetName) or string.find(dname, targetName) then
-			count += 1
-		end
-	end
-	return count
+ local count = 0
+ for _, user in ipairs(players) do
+  local uname = string.lower(user.name or "")
+  local dname = string.lower(user.displayName or "")
+  if string.find(uname, targetName) or string.find(dname, targetName) then
+   count += 1
+  end
+ end
+ return count
 end
 
-Notify("Server Scanner", "Mencari server dengan nama "..targetName.."...")
-
-for i = 1, 5 do
-	local servers = GetServers()
-	if servers then
-		for _, srv in ipairs(servers) do
-			if srv.playing < srv.maxPlayers and not tried[srv.id] then
-				tried[srv.id] = true
-				local count = HasAFZ(srv.players or {})
-				if count > highestCount then
-					bestServer = srv
-					highestCount = count
-				end
-			end
-		end
-	end
-	if cursor == "" then break end
-end
-
-if bestServer then
-	Notify("Teleporting...", "Ditemukan "..highestCount.." pemain 'aFz'")
-	wait(2)
-	TeleportService:TeleportToPlaceInstance(PlaceId, bestServer.id, Players.LocalPlayer)
-else
-	Notify("Gagal", "Tidak ada server cocok ditemukan")
-end
-
--- == GUI SYSTEM == --
-local function createKeyGUI()
-    local playerGui = LocalPlayer:WaitForChild("PlayerGui")
-    local gui = Instance.new("ScreenGui", playerGui)
-    gui.Name = "KeySystem"
-
-    local frame = Instance.new("Frame", gui)
-    frame.Size = UDim2.new(0, 250, 0, 120)
-    frame.Position = UDim2.new(0.5, -125, 0.5, -60)
-    frame.BackgroundColor3 = Color3.new(0, 0, 0)
-
-    local title = Instance.new("TextLabel", frame)
-    title.Size = UDim2.new(1, 0, 0, 30)
-    title.Text = "Enter Key to Access ESP"
-    title.TextColor3 = Color3.new(1, 1, 1)
-    title.Font = Enum.Font.SourceSansBold
-    title.TextScaled = true
-    title.BackgroundTransparency = 1
-
-    local textbox = Instance.new("TextBox", frame)
-    textbox.Size = UDim2.new(1, -20, 0, 30)
-    textbox.Position = UDim2.new(0, 10, 0, 40)
-    textbox.PlaceholderText = "Enter Key..."
-    textbox.Text = ""
-    textbox.TextColor3 = Color3.new(1, 1, 1)
-    textbox.BackgroundColor3 = Color3.new(0.15, 0.15, 0.15)
-    textbox.TextScaled = true
-    textbox.Font = Enum.Font.SourceSans
-
-    local button = Instance.new("TextButton", frame)
-    button.Size = UDim2.new(1, -20, 0, 30)
-    button.Position = UDim2.new(0, 10, 0, 80)
-    button.Text = "Submit"
-    button.TextColor3 = Color3.new(1, 1, 1)
-    button.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
-    button.TextScaled = true
-    button.Font = Enum.Font.SourceSansBold
-
-    button.MouseButton1Click:Connect(function()
-        if textbox.Text == validKey then
-            gui:Destroy()
-            spawn(loadMainGUI)
-        else
-            textbox.Text = ""
-            textbox.PlaceholderText = "Wrong key!"
-        end
-    end)
-end
-
-function loadMainGUI()
-    local playerGui = LocalPlayer:WaitForChild("PlayerGui")
-    local gui = Instance.new("ScreenGui", playerGui)
-    gui.Name = "ESP_GUI"
-
-    local frame = Instance.new("Frame", gui)
-    frame.Size = UDim2.new(0, 200, 0, 140)
-    frame.Position = UDim2.new(0, 20, 0, 100)
-    frame.BackgroundColor3 = Color3.new(0, 0, 0)
-    frame.Active = true
-    frame.Draggable = true
-
-    local title = Instance.new("TextLabel", frame)
-    title.Size = UDim2.new(1, 0, 0, 30)
-    title.Text = "ANTI AFZ ESP"
-    title.TextColor3 = Color3.new(1, 1, 1)
-    title.BackgroundTransparency = 1
-    title.Font = Enum.Font.SourceSansBold
-    title.TextScaled = true
-
-    local toggle = Instance.new("TextButton", frame)
-    toggle.Size = UDim2.new(1, -10, 0, 30)
-    toggle.Position = UDim2.new(0, 5, 0, 35)
-    toggle.Text = "ESP: OFF"
-    toggle.TextColor3 = Color3.new(1, 1, 1)
-    toggle.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
-    toggle.TextScaled = true
-    toggle.Font = Enum.Font.SourceSans
-
-    local hop = Instance.new("TextButton", frame)
-    hop.Size = UDim2.new(1, -10, 0, 30)
-    hop.Position = UDim2.new(0, 5, 0, 75)
-    hop.Text = "Auto Server Hop"
-    hop.TextColor3 = Color3.new(1, 1, 1)
-    hop.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
-    hop.TextScaled = true
-    hop.Font = Enum.Font.SourceSans
-
-    local credit = Instance.new("TextLabel", frame)
-    credit.Size = UDim2.new(1, -10, 0, 20)
-    credit.Position = UDim2.new(0, 5, 0, 115)
-    credit.Text = "Created by Dark Sistem"
-    credit.BackgroundTransparency = 1
-    credit.TextColor3 = Color3.new(1, 1, 1)
-    credit.Font = Enum.Font.SourceSans
-    credit.TextScaled = true
-
-    -- ESP logic
-    local espEnabled = false
-    local espObjects = {}
-
-    local function clearESP()
-        for _, v in pairs(espObjects) do
-            if v.label then v.label:Destroy() end
-            if v.gui then v.gui:Destroy() end
-        end
-        espObjects = {}
+-- Server Hop to best server with most afz players
+function serverHop()
+ Notify("Server Scanner", "Mencari server dengan nama "..targetName.."...")
+ bestServer = nil
+ highestCount = 0
+ tried = {}
+ cursor = ""
+ for i = 1, 5 do
+  local servers = GetServers()
+  if servers then
+   for _, srv in ipairs(servers) do
+    if srv.playing < srv.maxPlayers and not tried[srv.id] then
+     tried[srv.id] = true
+     local count = HasAFZ(srv.players or {})
+     if count > highestCount then
+      bestServer = srv
+      highestCount = count
+     end
     end
-
-    RunService.RenderStepped:Connect(function()
-        if not espEnabled then
-            clearESP()
-            return
-        end
-
-        for _, player in pairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                if string.sub(string.lower(player.Name), 1, #targetPrefix) == targetPrefix then
-                    local hrp = player.Character.HumanoidRootPart
-                    local distance = (LocalPlayer.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
-
-                    if not espObjects[player] then
-                        local billboard = Instance.new("BillboardGui", hrp)
-                        billboard.Adornee = hrp
-                        billboard.Size = UDim2.new(0, 200, 0, 50)
-                        billboard.StudsOffset = Vector3.new(0, 3, 0)
-                        billboard.AlwaysOnTop = true
-
-                        local label = Instance.new("TextLabel", billboard)
-                        label.Size = UDim2.new(1, 0, 1, 0)
-                        label.BackgroundTransparency = 1
-                        label.TextColor3 = Color3.new(1, 0, 0)
-                        label.TextScaled = true
-                        label.Font = Enum.Font.SourceSansBold
-                        label.Text = player.Name .. " | " .. math.floor(distance) .. "m"
-
-                        espObjects[player] = {gui = billboard, label = label}
-                    else
-                        espObjects[player].label.Text = player.Name .. " | " .. math.floor(distance) .. "m"
-                    end
-                elseif espObjects[player] then
-                    espObjects[player].label:Destroy()
-                    espObjects[player].gui:Destroy()
-                    espObjects[player] = nil
-                end
-            end
-        end
-    end)
-
-    toggle.MouseButton1Click:Connect(function()
-        espEnabled = not espEnabled
-        toggle.Text = espEnabled and "ESP: ON" or "ESP: OFF"
-        if not espEnabled then
-            clearESP()
-        end
-    end)
-
-    hop.MouseButton1Click:Connect(function()
-        hop.Text = "Hopping..."
-        hop.AutoButtonColor = false
-        -- jalankan auto server hop sampai ketemu player "afz"
-        spawn(function()
-            serverHop()
-            hop.Text = "Auto Server Hop"
-            hop.AutoButtonColor = true
-        end)
-    end)
+   end
+  end
+  if cursor == "" then break end
+ end
+ if bestServer then
+  Notify("Teleporting...", "Ditemukan "..highestCount.." pemain 'aFz'")
+  wait(2)
+  TeleportService:TeleportToPlaceInstance(PlaceId, bestServer.id, LocalPlayer)
+ else
+  Notify("Gagal", "Tidak ada server cocok ditemukan")
+ end
 end
 
--- MULAI SCRIPT
+-- Fling 1: cepat muter dan fling target to void
+function flingTarget(targetPlayer)
+ if not targetPlayer or not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+ local hrp = targetPlayer.Character.HumanoidRootPart
+ local localHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+ if not localHRP then return end
+
+ local rotations = 0
+ local maxRotations = 20
+ local angleStep = math.rad(36) -- 10 step full circle (360/10)
+
+ local conn
+ conn = RunService.Heartbeat:Connect(function()
+  if rotations >= maxRotations then
+   conn:Disconnect()
+   -- teleport target to void
+   hrp.CFrame = hrp.CFrame + Vector3.new(0, -500, 0)
+   Notify("Fling", "Target "..targetPlayer.Name.." sudah di-void!")
+   return
+  end
+  localHRP.CFrame = localHRP.CFrame * CFrame.Angles(0, angleStep, 0)
+  localHRP.CFrame = CFrame.new(hrp.Position + Vector3.new(0, 5, 0)) * CFrame.Angles(0, rotations*angleStep, 0)
+  rotations += 1
+ end)
+end
+
+-- Fling 2: khusus Brookhaven, teleport sofa ke target lalu ke void lalu kembali
+function fling2Brookhaven(targetPlayer)
+ if not targetPlayer or not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+ local sofa = nil
+ -- Cari sofa di inventory (contoh nama: "Sofa")
+ for _, item in pairs(LocalPlayer.Backpack:GetChildren()) do
+  if string.lower(item.Name):find("sofa") then
+   sofa = item
+   break
+  end
+ end
+ if not sofa then
+  Notify("Fling 2", "Sofa tidak ditemukan di inventory!")
+  return
+ end
+
+ local hrpTarget = targetPlayer.Character.HumanoidRootPart
+ local localHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+ if not localHRP then return end
+
+ local originalPos = localHRP.CFrame
+
+ sofa.Parent = workspace
+ sofa.CFrame = localHRP.CFrame
+ wait(0.1)
+
+ -- Teleport sofa ke target
+ sofa.CFrame = hrpTarget.CFrame + Vector3.new(0, 5, 0)
+ wait(0.3)
+
+ -- Teleport sofa ke void
+ sofa.CFrame = sofa.CFrame + Vector3.new(0, -500, 0)
+ Notify("Fling 2", "Sofa di-void-kan untuk target "..targetPlayer.Name)
+
+ wait(1)
+
+ -- Kembalikan sofa ke player
+ sofa.CFrame = originalPos
+ sofa.Parent = LocalPlayer.Backpack
+end
+
+-- ================= GUI & UTILS ================
+
+-- Animate GUI transitions
+local function tweenGui(obj, props, time, style, dir)
+ return TweenService:Create(obj, TweenInfo.new(time or 0.4, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out), props)
+end
+
+-- Background gradient & animation
+local function createBackgroundAnimation(parent)
+ local bg = Instance.new("Frame", parent)
+ bg.Size = UDim2.new(1, 0, 1, 0)
+ bg.Position = UDim2.new(0, 0, 0, 0)
+ bg.BackgroundTransparency = 1
+ bg.ZIndex = 0
+
+ local gradient = Instance.new("UIGradient", bg)
+ gradient.Rotation = 45
+ gradient.Color = ColorSequence.new(theme[currentTheme].gradientColors)
+
+ spawn(function()
+  while parent.Parent and parent.Parent:IsA("PlayerGui") do
+   for i = 0, 1, 0.005 do
+    gradient.Offset = Vector2.new(i, i)
+    wait(0.03)
+   end
+   for i = 1, 0, -0.005 do
+    gradient.Offset = Vector2.new(i, i)
+    wait(0.03)
+   end
+  end
+ end)
+
+ return bg
+end
+
+-- Clear ESP labels
+local espObjects = {}
+local espEnabled = false
+
+local function clearESP()
+ for _, v in pairs(espObjects) do
+  if v.label then v.label:Destroy() end
+  if v.gui then v.gui:Destroy() end
+ end
+ espObjects = {}
+end
+
+-- ESP Update Loop
+RunService.RenderStepped:Connect(function()
+ if not espEnabled then
+  clearESP()
+  return
+ end
+ for _, player in pairs(Players:GetPlayers()) do
+  if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+   if string.sub(string.lower(player.Name), 1, #targetPrefix) == targetPrefix then
+    local hrp = player.Character.HumanoidRootPart
+    local distance = (LocalPlayer.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
+    if not espObjects[player] then
+     local billboard = Instance.new("BillboardGui", hrp)
+     billboard.Adornee = hrp
+     billboard.Size = UDim2.new(0, 200, 0, 50)
+     billboard.StudsOffset = Vector3.new(0, 3, 0)
+     billboard.AlwaysOnTop = true
+
+     local label = Instance.new("TextLabel", billboard)
+     label.Size = UDim2.new(1, 0, 1, 0)
+     label.BackgroundTransparency = 1
+     label.TextColor3 = Color3.new(1, 0, 0)
+     label.TextScaled = true
+     label.Font = Enum.Font.SourceSansBold
+     label.Text = player.Name .. " | " .. math.floor(distance) .. "m"
+
+     espObjects[player] = {gui = billboard, label = label}
+    else
+     espObjects[player].label.Text = player.Name .. " | " .. math.floor(distance) .. "m"
+    end
+   elseif espObjects[player] then
+    espObjects[player].label:Destroy()
+    espObjects[player].gui:Destroy()
+    espObjects[player] = nil
+   end
+  end
+ end
+end)
+
+-- GUI Main
+local function createKeyGUI()
+ local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+ local gui = Instance.new("ScreenGui", playerGui)
+ gui.Name = "KeySystem"
+
+ local frame = Instance.new("Frame", gui)
+ frame.Size = UDim2.new(0, 280, 0, 130)
+ frame.Position = UDim2.new(0.5, -140, 0.5, -65)
+ frame.BackgroundColor3 = theme[currentTheme].bg
+ frame.BorderSizePixel = 0
+ frame.AnchorPoint = Vector2.new(0.5, 0.5)
+ local uicorner = Instance.new("UICorner", frame)
+ uicorner.CornerRadius = UDim.new(0, 14)
+
+ -- BG Gradient animated
+ createBackgroundAnimation(frame)
+
+ local title = Instance.new("TextLabel", frame)
+ title.Size = UDim2.new(1, 0, 0, 35)
+ title.BackgroundTransparency = 1
+ title.Text = "AFZ Server Hop & Fling GUI"
+ title.Font = Enum.Font.GothamBold
+ title.TextScaled = true
+ title.TextColor3 = theme[currentTheme].accent
+
+ local keyBox = Instance.new("TextBox", frame)
+ keyBox.PlaceholderText = "Masukkan key..."
+ keyBox.Size = UDim2.new(0.9, 0, 0, 30)
+ keyBox.Position = UDim2.new(0.05, 0, 0, 45)
+ keyBox.ClearTextOnFocus = false
+ keyBox.BackgroundColor3 = theme[currentTheme].button
+ keyBox.TextColor3 = theme[currentTheme].text
+ local kbCorner = Instance.new("UICorner", keyBox)
+ kbCorner.CornerRadius = UDim.new(0, 8)
+
+ local submitBtn = Instance.new("TextButton", frame)
+ submitBtn.Size = UDim2.new(0.9, 0, 0, 30)
+ submitBtn.Position = UDim2.new(0.05, 0, 0, 80)
+ submitBtn.Text = "Submit"
+ submitBtn.Font = Enum.Font.GothamBold
+ submitBtn.TextColor3 = theme[currentTheme].text
+ submitBtn.BackgroundColor3 = theme[currentTheme].accent
+ local sbCorner = Instance.new("UICorner", submitBtn)
+ sbCorner.CornerRadius = UDim.new(0, 8)
+
+ submitBtn.MouseButton1Click:Connect(function()
+  if keyBox.Text == validKey then
+   Notify("Success", "Key valid! GUI terbuka.")
+   gui:Destroy()
+   createMainGUI()
+  else
+   Notify("Error", "Key salah!")
+  end
+ end)
+end
+
+function createMainGUI()
+ local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+ local gui = Instance.new("ScreenGui", playerGui)
+ gui.Name = "AFZGui"
+
+ local frame = Instance.new("Frame", gui)
+ frame.Size = UDim2.new(0, 300, 0, 420)
+ frame.Position = UDim2.new(0.5, -150, 0.5, -210)
+ frame.BackgroundColor3 = theme[currentTheme].bg
+ frame.BorderSizePixel = 0
+ frame.AnchorPoint = Vector2.new(0.5, 0.5)
+ frame.ClipsDescendants = true
+ local frameCorner = Instance.new("UICorner", frame)
+ frameCorner.CornerRadius = UDim.new(0, 20)
+
+ -- Animate appear
+ tweenGui(frame, {BackgroundTransparency=0}, 0.5):Play()
+
+ createBackgroundAnimation(frame)
+
+ local title = Instance.new("TextLabel", frame)
+ title.Size = UDim2.new(1, 0, 0, 40)
+ title.BackgroundTransparency = 1
+ title.Text = "AFZ Server Hop & Fling GUI"
+ title.Font = Enum.Font.GothamBold
+ title.TextScaled = true
+ title.TextColor3 = theme[currentTheme].accent
+
+ -- Dark/Light toggle
+ local themeToggle = Instance.new("TextButton", frame)
+ themeToggle.Text = "Toggle Dark/Light Theme"
+ themeToggle.Size = UDim2.new(0.9, 0, 0, 30)
+ themeToggle.Position = UDim2.new(0.05, 0, 0, 50)
+ themeToggle.BackgroundColor3 = theme[currentTheme].button
+ themeToggle.TextColor3 = theme[currentTheme].text
+ local themeCorner = Instance.new("UICorner", themeToggle)
+ themeCorner.CornerRadius = UDim.new(0, 8)
+
+ themeToggle.MouseButton1Click:Connect(function()
+  currentTheme = (currentTheme == "dark" and "light" or "dark")
+  -- Recreate GUI for simplicity
+  gui:Destroy()
+  createMainGUI()
+ end)
+
+ -- Server hop button
+ local serverHopBtn = Instance.new("TextButton", frame)
+ serverHopBtn.Text = "Server Hop AFZ"
+ serverHopBtn.Size = UDim2.new(0.9, 0, 0, 40)
+ serverHopBtn.Position = UDim2.new(0.05, 0, 0, 90)
+ serverHopBtn.BackgroundColor3 = theme[currentTheme].accent
+ serverHopBtn.TextColor3 = theme[currentTheme].text
+ local shpCorner = Instance.new("UICorner", serverHopBtn)
+ shpCorner.CornerRadius = UDim.new(0, 8)
+
+ serverHopBtn.MouseButton1Click:Connect(function()
+  spawn(serverHop)
+ end)
+
+ -- Fling 1 button
+ local flingBtn = Instance.new("TextButton", frame)
+ flingBtn.Text = "Fling Target AFZ"
+ flingBtn.Size = UDim2.new(0.9, 0, 0, 40)
+ flingBtn.Position = UDim2.new(0.05, 0, 0, 140)
+ flingBtn.BackgroundColor3 = theme[currentTheme].accent
+ flingBtn.TextColor3 = theme[currentTheme].text
+ local fbCorner = Instance.new("UICorner", flingBtn)
+ fbCorner.CornerRadius = UDim.new(0, 8)
+
+ flingBtn.MouseButton1Click:Connect(function()
+  -- Cari target afz terdekat
+  local target = nil
+  local minDist = math.huge
+  for _, p in pairs(Players:GetPlayers()) do
+   if p ~= LocalPlayer and string.sub(string.lower(p.Name),1,#targetPrefix) == targetPrefix and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+    local dist = (LocalPlayer.Character.HumanoidRootPart.Position - p.Character.HumanoidRootPart.Position).Magnitude
+    if dist < minDist then
+     target = p
+     minDist = dist
+    end
+   end
+  end
+  if target then
+   Notify("Fling", "Mulai fling target "..target.Name)
+   flingTarget(target)
+  else
+   Notify("Fling", "Target AFZ tidak ditemukan")
+  end
+ end)
+
+ -- Fling 2 button (Brookhaven)
+ local fling2Btn = Instance.new("TextButton", frame)
+ fling2Btn.Text = "Fling 2 (Brookhaven)"
+ fling2Btn.Size = UDim2.new(0.9, 0, 0, 40)
+ fling2Btn.Position = UDim2.new(0.05, 0, 0, 190)
+ fling2Btn.BackgroundColor3 = theme[currentTheme].accent
+ fling2Btn.TextColor3 = theme[currentTheme].text
+ local f2Corner = Instance.new("UICorner", fling2Btn)
+ f2Corner.CornerRadius = UDim.new(0, 8)
+
+ fling2Btn.MouseButton1Click:Connect(function()
+  -- Cek game tempat (Brookhaven)
+  if PlaceId ~= 2753915549 then
+   Notify("Fling 2", "Fling 2 hanya untuk Brookhaven")
+   return
+  end
+  local target = nil
+  local minDist = math.huge
+  for _, p in pairs(Players:GetPlayers()) do
+   if p ~= LocalPlayer and string.sub(string.lower(p.Name),1,#targetPrefix) == targetPrefix and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+    local dist = (LocalPlayer.Character.HumanoidRootPart.Position - p.Character.HumanoidRootPart.Position).Magnitude
+    if dist < minDist then
+     target = p
+     minDist = dist
+    end
+   end
+  end
+  if target then
+   Notify("Fling 2", "Mulai fling 2 target "..target.Name)
+   fling2Brookhaven(target)
+  else
+   Notify("Fling 2", "Target AFZ tidak ditemukan")
+  end
+ end)
+
+ -- Toggle ESP button
+ local espBtn = Instance.new("TextButton", frame)
+ espBtn.Text = "Toggle ESP AFZ"
+ espBtn.Size = UDim2.new(0.9, 0, 0, 40)
+ espBtn.Position = UDim2.new(0.05, 0, 0, 240)
+ espBtn.BackgroundColor3 = theme[currentTheme].accent
+ espBtn.TextColor3 = theme[currentTheme].text
+ local espCorner = Instance.new("UICorner", espBtn)
+ espCorner.CornerRadius = UDim.new(0, 8)
+
+ espBtn.MouseButton1Click:Connect(function()
+  espEnabled = not espEnabled
+  if espEnabled then
+   Notify("ESP", "ESP AFZ diaktifkan")
+  else
+   Notify("ESP", "ESP AFZ dinonaktifkan")
+   clearESP()
+  end
+ end)
+
+ -- Minimize button
+ local minimizeBtn = Instance.new("TextButton", frame)
+ minimizeBtn.Text = "Minimize"
+ minimizeBtn.Size = UDim2.new(0.9, 0, 0, 40)
+ minimizeBtn.Position = UDim2.new(0.05, 0, 0, 290)
+ minimizeBtn.BackgroundColor3 = theme[currentTheme].button
+ minimizeBtn.TextColor3 = theme[currentTheme].text
+ local minCorner = Instance.new("UICorner", minimizeBtn)
+ minCorner.CornerRadius = UDim.new(0, 8)
+
+ minimizeBtn.MouseButton1Click:Connect(function()
+  -- Minimalkan GUI utama dan tampilkan icon kecil keren
+  gui.Enabled = false
+  iconGui.Enabled = true
+ end)
+
+ -- Credits label (pindah bawah tombol fling2)
+ local credits = Instance.new("TextLabel", frame)
+ credits.Text = "Created by Prri | coded by : dark sistem"
+ credits.Size = UDim2.new(0.9, 0, 0, 20)
+ credits.Position = UDim2.new(0.05, 0, 0, 340)
+ credits.BackgroundTransparency = 1
+ credits.TextColor3 = theme[currentTheme].accent
+ credits.Font = Enum.Font.GothamBold
+ credits.TextScaled = true
+ credits.TextXAlignment = Enum.TextXAlignment.Left
+
+ -- Drag GUI
+ frame.Active = true
+ frame.Draggable = true
+
+ -- Return references for icon toggle use
+ return gui, frame
+end
+
+-- Keren banget icon GUI kecil saat minimize (dengan animasi, glow, gradient)
+local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+local iconGui = Instance.new("ScreenGui", playerGui)
+iconGui.Name = "MinimizedIcon"
+iconGui.Enabled = false
+
+local iconFrame = Instance.new("Frame", iconGui)
+iconFrame.Size = UDim2.new(0, 60, 0, 60)
+iconFrame.Position = UDim2.new(0, 10, 0.9, -70)
+iconFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+iconFrame.AnchorPoint = Vector2.new(0,0)
+iconFrame.ZIndex = 10
+iconFrame.ClipsDescendants = true
+iconFrame.Active = true
+iconFrame.Draggable = true
+iconFrame.BorderSizePixel = 0
+local iconCorner = Instance.new("UICorner", iconFrame)
+iconCorner.CornerRadius = UDim.new(1, 0) -- bulat sempurna
+
+local glow = Instance.new("UIStroke", iconFrame)
+glow.Color = Color3.fromRGB(255, 85, 255)
+glow.Transparency = 0.5
+glow.Thickness = 4
+glow.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+glow.LineJoinMode = Enum.LineJoinMode.Round
+
+local gradient = Instance.new("UIGradient", iconFrame)
+gradient.Rotation = 45
+gradient.Color = ColorSequence.new{
+ ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 255)),
+ ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 255)),
+ ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 255))
+}
+
+local iconLabel = Instance.new("TextLabel", iconFrame)
+iconLabel.Size = UDim2.new(1, 0, 1, 0)
+iconLabel.BackgroundTransparency = 1
+iconLabel.Text = "PRRI"
+iconLabel.Font = Enum.Font.GothamBlack
+iconLabel.TextScaled = true
+iconLabel.TextColor3 = Color3.new(1, 1, 1)
+iconLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+iconLabel.TextStrokeTransparency = 0
+iconLabel.ZIndex = 11
+
+local tooltip = Instance.new("TextLabel", iconGui)
+tooltip.Size = UDim2.new(0, 120, 0, 30)
+tooltip.Position = UDim2.new(0, 70, 0.9, -50)
+tooltip.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+tooltip.BackgroundTransparency = 0.7
+tooltip.TextColor3 = Color3.new(1,1,1)
+tooltip.Text = "Click to open GUI"
+tooltip.Font = Enum.Font.SourceSansBold
+tooltip.TextScaled = true
+tooltip.Visible = false
+tooltip.ZIndex = 15
+local tipCorner = Instance.new("UICorner", tooltip)
+tipCorner.CornerRadius = UDim.new(0, 8)
+
+-- Pulsate glow animasi
+local pulseTweenInfo = TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
+local pulseTween = TweenService:Create(glow, pulseTweenInfo, {Transparency = 0.1})
+pulseTween:Play()
+
+-- Animate gradient offset slow
+spawn(function()
+ while iconGui.Enabled do
+  for i = 0, 1, 0.01 do
+   gradient.Offset = Vector2.new(i, i)
+   wait(0.03)
+  end
+  for i = 1, 0, -0.01 do
+   gradient.Offset = Vector2.new(i, i)
+   wait(0.03)
+  end
+ end
+end)
+
+-- Tooltip show/hide
+iconFrame.MouseEnter:Connect(function()
+ tooltip.Visible = true
+end)
+iconFrame.MouseLeave:Connect(function()
+ tooltip.Visible = false
+end)
+
+-- Click icon to toggle GUI main
+iconFrame.InputBegan:Connect(function(input)
+ if input.UserInputType == Enum.UserInputType.MouseButton1 then
+  iconGui.Enabled = false
+  local gui = playerGui:FindFirstChild("AFZGui")
+  if gui then gui.Enabled = true end
+ end
+end)
+
+-- START
 createKeyGUI()
