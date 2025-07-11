@@ -1,4 +1,4 @@
--- == CONFIG == --
+ -- == CONFIG == --
 local validKey = "Prri123" -- key valid saat ini
 local targetPrefix = "afz"
 
