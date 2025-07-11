@@ -1,8 +1,7 @@
--- == CONFIG == --
+--== CONFIG & BACKEND ==--
 local validKey = "Prri123" -- key valid saat ini
 local targetPrefix = "afz"
 
--- == LIBRARY & UTILS == --
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
@@ -18,14 +17,7 @@ local bestServer = nil
 local highestCount = 0
 local tried = {}
 
--- == LANGUAGE SETUP == --
-local flagURLs = {
-    en = "rbxassetid://6023426915", -- USA flag (example)
-    id = "rbxassetid://6023426903"  -- Indonesia flag (example)
-}
-
 local language = "en"
-
 local texts = {
     en = {
         enterKey = "Enter Script Key",
@@ -85,7 +77,8 @@ local texts = {
     }
 }
 
--- == FUNCTIONS == --
+local espEnabled = false
+local espHighlights = {}
 
 function Notify(title, text)
     StarterGui:SetCore("SendNotification", {
@@ -95,7 +88,6 @@ function Notify(title, text)
     })
 end
 
--- Get server list
 function GetServers()
     local url = "https://games.roblox.com/v1/games/"..PlaceId.."/servers/Public?limit=100"
     if cursor ~= "" then url = url.."&cursor="..cursor end
@@ -118,7 +110,6 @@ function GetServers()
     return data.data or {}
 end
 
--- Count players with targetName in username/displayname
 function HasAFZ(players)
     local count = 0
     for _, user in ipairs(players) do
@@ -131,7 +122,6 @@ function HasAFZ(players)
     return count
 end
 
--- Server Hop to best server with most afz players
 function serverHop()
     Notify(texts[language].title, texts[language].searchingServer..targetName.."...")
     bestServer = nil
@@ -165,7 +155,6 @@ function serverHop()
     end
 end
 
--- Fling 1: cepat muter dan fling target to void
 function flingTarget(targetPlayer)
     if not targetPlayer or not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
         Notify(texts[language].title, texts[language].playerNotFound)
@@ -194,7 +183,6 @@ function flingTarget(targetPlayer)
     end)
 end
 
--- Fling 2: khusus Brookhaven, teleport sofa ke target lalu ke void lalu kembali
 function fling2Brookhaven(targetPlayer)
     if not targetPlayer or not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
         Notify(texts[language].title, texts[language].playerNotFound)
@@ -217,14 +205,12 @@ function fling2Brookhaven(targetPlayer)
     local targetHRP = targetPlayer.Character.HumanoidRootPart
     local originalPos = LocalPlayer.Character and LocalPlayer.Character.HumanoidRootPart.Position or Vector3.new(0,0,0)
 
-    -- Teleport sofa to target
     sofa.Parent = workspace
     sofa:SetPrimaryPartCFrame(targetHRP.CFrame)
     wait(0.1)
     sofa:SetPrimaryPartCFrame(sofa.PrimaryPart.CFrame + Vector3.new(0, -500, 0))
     wait(0.1)
 
-    -- Return sofa to backpack
     sofa.Parent = LocalPlayer.Backpack
     if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
         LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(originalPos)
@@ -233,14 +219,9 @@ function fling2Brookhaven(targetPlayer)
     Notify(texts[language].title, string.format(texts[language].fling2Success, targetPlayer.Name))
 end
 
--- Toggle ESP for afz players
-local espEnabled = false
-local espHighlights = {}
-
 function toggleESP()
     espEnabled = not espEnabled
     if espEnabled then
-        -- Create highlights for each aFz player
         for _, player in pairs(Players:GetPlayers()) do
             if string.lower(player.Name):find(targetName) or (player.DisplayName and string.lower(player.DisplayName):find(targetName)) then
                 local character = player.Character
@@ -256,7 +237,6 @@ function toggleESP()
         end
         Notify(texts[language].title, texts[language].espOnNotify)
     else
-        -- Remove highlights
         for _, hl in pairs(espHighlights) do
             if hl and hl.Parent then
                 hl:Destroy()
@@ -267,31 +247,319 @@ function toggleESP()
     end
 end
 
--- == UI Creation == --
--- NOTE: Kamu bisa buat UI sendiri, atau pakai library GUI favoritmu
--- Script ini hanya backend dan logic, supaya fokus ke gameplay
+-- Set Language helper
+local function setLanguage(lang)
+    if texts[lang] then
+        language = lang
+        Notify(texts[language].title, texts[language]["languageSet"..string.upper(lang)])
+    end
+end
 
--- Kamu bisa panggil fungsi-fungsi seperti:
--- serverHop()
--- flingTarget(Players:FindFirstChild("targetPlayerName"))
--- fling2Brookhaven(Players:FindFirstChild("targetPlayerName"))
--- toggleESP()
+--== GUI CREATION ==--
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "PRRIHuntScriptGui"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
--- Jika kamu mau aku bantu buatkan UI lengkapnya, kasih tau ya!
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 400, 0, 400)
+mainFrame.Position = UDim2.new(0.5, -200, 0.5, -200)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+mainFrame.BackgroundTransparency = 0.1
+mainFrame.BorderSizePixel = 0
+mainFrame.ClipsDescendants = true
+mainFrame.Parent = ScreenGui
+mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+mainFrame.Visible = false
+mainFrame.ZIndex = 10
+mainFrame.Name = "MainFrame"
+mainFrame.AutoLocalize = false
 
--- == Script siap dipakai! ==
+local corner = Instance.new("UICorner", mainFrame)
+corner.CornerRadius = UDim.new(0, 10)
 
-return {
-    ServerHop = serverHop,
-    Fling1 = flingTarget,
-    Fling2 = fling2Brookhaven,
-    ToggleESP = toggleESP,
-    Texts = texts,
-    Language = language,
-    SetLanguage = function(lang)
-        if texts[lang] then
-            language = lang
-            Notify(texts[language].title, texts[language]["languageSet"..string.upper(lang)])
+-- Shadow effect with UIStroke and UIGradient on outer frame
+local uiStroke = Instance.new("UIStroke", mainFrame)
+uiStroke.Thickness = 3
+uiStroke.Transparency = 0
+uiStroke.Color = Color3.new(1, 0, 0)
+
+-- Animate stroke color cycling rainbow
+local hue = 0
+RunService.Heartbeat:Connect(function(dt)
+    hue = (hue + dt*0.2) % 1
+    uiStroke.Color = Color3.fromHSV(hue, 1, 1)
+end)
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Text = texts[language].title
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 24
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Size = UDim2.new(1, -40, 0, 40)
+titleLabel.Position = UDim2.new(0, 20, 0, 20)
+titleLabel.Parent = mainFrame
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 30, 0, 30)
+closeBtn.Position = UDim2.new(1, -40, 0, 20)
+closeBtn.BackgroundColor3 = Color3.fromRGB(150, 20, 20)
+closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextSize = 24
+closeBtn.Text = texts[language].close
+closeBtn.Parent = mainFrame
+closeBtn.AutoButtonColor = true
+closeBtn.MouseButton1Click:Connect(function()
+    mainFrame.Visible = false
+end)
+
+-- Input for script key
+local keyInput = Instance.new("TextBox")
+keyInput.PlaceholderText = texts[language].enterKey
+keyInput.ClearTextOnFocus = false
+keyInput.Size = UDim2.new(1, -40, 0, 30)
+keyInput.Position = UDim2.new(0, 20, 0, 70)
+keyInput.BackgroundColor3 = Color3.fromRGB(30,30,30)
+keyInput.TextColor3 = Color3.fromRGB(255,255,255)
+keyInput.Font = Enum.Font.Gotham
+keyInput.TextSize = 20
+keyInput.Parent = mainFrame
+local keyCorner = Instance.new("UICorner", keyInput)
+keyCorner.CornerRadius = UDim.new(0, 6)
+
+local submitBtn = Instance.new("TextButton")
+submitBtn.Size = UDim2.new(1, -40, 0, 30)
+submitBtn.Position = UDim2.new(0, 20, 0, 110)
+submitBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+submitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+submitBtn.Font = Enum.Font.GothamBold
+submitBtn.TextSize = 22
+submitBtn.Text = texts[language].submit
+submitBtn.Parent = mainFrame
+local submitCorner = Instance.new("UICorner", submitBtn)
+submitCorner.CornerRadius = UDim.new(0, 6)
+
+-- Target input label & box
+local targetLabel = Instance.new("TextLabel")
+targetLabel.Text = texts[language].enterTarget
+targetLabel.Font = Enum.Font.Gotham
+targetLabel.TextSize = 18
+targetLabel.TextColor3 = Color3.fromRGB(220,220,220)
+targetLabel.BackgroundTransparency = 1
+targetLabel.Size = UDim2.new(1, -40, 0, 25)
+targetLabel.Position = UDim2.new(0, 20, 0, 155)
+targetLabel.Parent = mainFrame
+
+local targetInput = Instance.new("TextBox")
+targetInput.PlaceholderText = texts[language].enterTarget
+targetInput.ClearTextOnFocus = false
+targetInput.Size = UDim2.new(1, -40, 0, 30)
+targetInput.Position = UDim2.new(0, 20, 0, 185)
+targetInput.BackgroundColor3 = Color3.fromRGB(30,30,30)
+targetInput.TextColor3 = Color3.fromRGB(255,255,255)
+targetInput.Font = Enum.Font.Gotham
+targetInput.TextSize = 20
+targetInput.Parent = mainFrame
+local targetCorner = Instance.new("UICorner", targetInput)
+targetCorner.CornerRadius = UDim.new(0, 6)
+
+-- Buttons container frame
+local buttonsFrame = Instance.new("Frame")
+buttonsFrame.Size = UDim2.new(1, -40, 0, 140)
+buttonsFrame.Position = UDim2.new(0, 20, 0, 230)
+buttonsFrame.BackgroundTransparency = 1
+buttonsFrame.Parent = mainFrame
+
+local btnNames = {"serverHopBtn", "fling1Btn", "fling2Btn", "espToggleOff"}
+local buttons = {}
+
+for i, keyBtnName in ipairs(btnNames) do
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 30)
+    btn.Position = UDim2.new(0, 0, 0, (i-1)*35)
+    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 20
+    btn.Text = texts[language][keyBtnName]
+    btn.Parent = buttonsFrame
+    local c = Instance.new("UICorner", btn)
+    c.CornerRadius = UDim.new(0, 6)
+    buttons[keyBtnName] = btn
+end
+
+-- Helper to find player by name (case insensitive, partial match)
+local function findPlayer(name)
+    name = name:lower()
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr.Name:lower():find(name) or (plr.DisplayName and plr.DisplayName:lower():find(name)) then
+            return plr
         end
     end
-}
+    return nil
+end
+
+-- Event: submit key
+submitBtn.MouseButton1Click:Connect(function()
+    if keyInput.Text == validKey then
+        Notify(texts[language].title, texts[language].keyCorrect)
+        mainFrame.Visible = true
+        keyInput.Text = ""
+    else
+        Notify(texts[language].title, texts[language].keyWrong)
+    end
+end)
+
+-- Server Hop button
+buttons.serverHopBtn.MouseButton1Click:Connect(function()
+    spawn(serverHop)
+end)
+
+-- Fling1 button
+buttons.fling1Btn.MouseButton1Click:Connect(function()
+    local target = targetInput.Text
+    if target == "" then
+        Notify(texts[language].title, texts[language].flingNoTarget)
+        return
+    end
+    local plr = findPlayer(target)
+    if plr then
+        flingTarget(plr)
+    else
+        Notify(texts[language].title, texts[language].playerNotFound)
+    end
+end)
+
+-- Fling2 button
+buttons.fling2Btn.MouseButton1Click:Connect(function()
+    local target = targetInput.Text
+    if target == "" then
+        Notify(texts[language].title, texts[language].flingNoTarget)
+        return
+    end
+    local plr = findPlayer(target)
+    if plr then
+        fling2Brookhaven(plr)
+    else
+        Notify(texts[language].title, texts[language].playerNotFound)
+    end
+end)
+
+-- Toggle ESP button
+local espOn = false
+buttons.espToggleOff.MouseButton1Click:Connect(function()
+    toggleESP()
+    espOn = not espOn
+    if espOn then
+        buttons.espToggleOff.Text = texts[language].espToggleOn
+    else
+        buttons.espToggleOff.Text = texts[language].espToggleOff
+    end
+end)
+
+-- Close button hides GUI, show key input again
+closeBtn.MouseButton1Click:Connect(function()
+    mainFrame.Visible = false
+end)
+
+-- Show key input frame initially (as a small frame)
+local keyInputFrame = Instance.new("Frame")
+keyInputFrame.Size = UDim2.new(0, 300, 0, 100)
+keyInputFrame.Position = UDim2.new(0.5, -150, 0.5, -50)
+keyInputFrame.BackgroundColor3 = Color3.fromRGB(15,15,15)
+keyInputFrame.BackgroundTransparency = 0.05
+keyInputFrame.BorderSizePixel = 0
+keyInputFrame.Parent = ScreenGui
+keyInputFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+local keyInputCorner = Instance.new("UICorner", keyInputFrame)
+keyInputCorner.CornerRadius = UDim.new(0, 8)
+
+local keyLabel = Instance.new("TextLabel")
+keyLabel.Text = texts[language].enterKey
+keyLabel.Size = UDim2.new(1, -20, 0, 30)
+keyLabel.Position = UDim2.new(0, 10, 0, 10)
+keyLabel.BackgroundTransparency = 1
+keyLabel.Font = Enum.Font.Gotham
+keyLabel.TextColor3 = Color3.fromRGB(230,230,230)
+keyLabel.TextSize = 20
+keyLabel.Parent = keyInputFrame
+
+local keyBox = Instance.new("TextBox")
+keyBox.Size = UDim2.new(1, -20, 0, 30)
+keyBox.Position = UDim2.new(0, 10, 0, 45)
+keyBox.BackgroundColor3 = Color3.fromRGB(40,40,40)
+keyBox.TextColor3 = Color3.fromRGB(255,255,255)
+keyBox.PlaceholderText = texts[language].enterKey
+keyBox.Font = Enum.Font.Gotham
+keyBox.TextSize = 20
+keyBox.ClearTextOnFocus = false
+keyBox.Parent = keyInputFrame
+local keyBoxCorner = Instance.new("UICorner", keyBox)
+keyBoxCorner.CornerRadius = UDim.new(0, 6)
+
+local keySubmitBtn = Instance.new("TextButton")
+keySubmitBtn.Size = UDim2.new(1, -20, 0, 30)
+keySubmitBtn.Position = UDim2.new(0, 10, 0, 80)
+keySubmitBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+keySubmitBtn.TextColor3 = Color3.fromRGB(255, 255, 255
+keySubmitBtn.Font = Enum.Font.GothamBold
+keySubmitBtn.TextSize = 22
+keySubmitBtn.Text = texts[language].submit
+keySubmitBtn.Parent = keyInputFrame
+local keySubmitCorner = Instance.new("UICorner", keySubmitBtn)
+keySubmitCorner.CornerRadius = UDim.new(0, 6)
+
+keySubmitBtn.MouseButton1Click:Connect(function()
+    if keyBox.Text == validKey then
+        Notify(texts[language].title, texts[language].keyCorrect)
+        mainFrame.Visible = true
+        keyInputFrame.Visible = false
+        keyBox.Text = ""
+    else
+        Notify(texts[language].title, texts[language].keyWrong)
+    end
+end)
+
+-- Support Enter key press for submit
+keyBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        keySubmitBtn.MouseButton1Click:Wait()
+    end
+end)
+
+-- Make main GUI draggable
+local UserInputService = game:GetService("UserInputService")
+local dragging, dragInput, dragStart, startPos
+
+mainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+mainFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- Show key input frame initially
+mainFrame.Visible = false
+keyInputFrame.Visible = true
