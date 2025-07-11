@@ -1,0 +1,297 @@
+-- == CONFIG == --
+local validKey = "Prri123" -- key valid saat ini
+local targetPrefix = "afz"
+
+-- == LIBRARY & UTILS == --
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+local StarterGui = game:GetService("StarterGui")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local LocalPlayer = Players.LocalPlayer
+local PlaceId = game.PlaceId
+local targetName = "afz"
+local cursor = ""
+local bestServer = nil
+local highestCount = 0
+local tried = {}
+
+-- == LANGUAGE SETUP == --
+local flagURLs = {
+    en = "rbxassetid://6023426915", -- USA flag (example)
+    id = "rbxassetid://6023426903"  -- Indonesia flag (example)
+}
+
+local language = "en"
+
+local texts = {
+    en = {
+        enterKey = "Enter Script Key",
+        submit = "Submit Key",
+        title = "PRRI HUNT SCRIPT",
+        serverHopBtn = "Server Hop (Search for afz servers)",
+        fling1Btn = "Fling Target (Method 1)",
+        fling2Btn = "Fling Target (Method 2)",
+        espToggleOn = "Toggle ESP aFz Players (ON)",
+        espToggleOff = "Toggle ESP aFz Players (OFF)",
+        close = "X",
+        enterTarget = "Enter target name for Fling",
+        createdBy = "Created by PRRI | coded by : dark sistem",
+        keyCorrect = "Key correct! Opening GUI...",
+        keyWrong = "Wrong key! Please try again.",
+        searchingServer = "Searching server with name ",
+        teleporting = "Teleporting...",
+        foundPlayers = "Found %d 'aFz' players",
+        noServer = "No suitable server found",
+        flingSuccess = "Target %s flung!",
+        flingNoTarget = "Please enter a target name!",
+        playerNotFound = "Player not found!",
+        espOnNotify = "ESP aFz enabled",
+        espOffNotify = "ESP aFz disabled",
+        fling2NoSofa = "Sofa not found in inventory!",
+        fling2Success = "Sofa voided for target %s",
+        languageSetEn = "Language set to English",
+        languageSetId = "Bahasa diubah ke Indonesia"
+    },
+    id = {
+        enterKey = "Masukkan Key Script",
+        submit = "Submit Key",
+        title = "PRRI HUNT SCRIPT",
+        serverHopBtn = "Server Hop (Cari server afz)",
+        fling1Btn = "Fling Target (Metode 1)",
+        fling2Btn = "Fling Target (Metode 2)",
+        espToggleOn = "Toggle ESP aFz Players (AKTIF)",
+        espToggleOff = "Toggle ESP aFz Players (MATI)",
+        close = "X",
+        enterTarget = "Masukkan nama target untuk Fling",
+        createdBy = "Dibuat oleh prri | coded by : dark sistem",
+        keyCorrect = "Key benar! Membuka GUI...",
+        keyWrong = "Key salah! Silahkan coba lagi.",
+        searchingServer = "Mencari server dengan nama ",
+        teleporting = "Teleporting...",
+        foundPlayers = "Ditemukan %d pemain 'aFz'",
+        noServer = "Tidak ada server cocok ditemukan",
+        flingSuccess = "Target %s sudah di-fling!",
+        flingNoTarget = "Masukkan nama target dulu!",
+        playerNotFound = "Player tidak ditemukan!",
+        espOnNotify = "ESP aFz diaktifkan",
+        espOffNotify = "ESP aFz dimatikan",
+        fling2NoSofa = "Sofa tidak ditemukan di inventory!",
+        fling2Success = "Sofa di-void-kan untuk target %s",
+        languageSetEn = "Language set to English",
+        languageSetId = "Bahasa diubah ke Indonesia"
+    }
+}
+
+-- == FUNCTIONS == --
+
+function Notify(title, text)
+    StarterGui:SetCore("SendNotification", {
+        Title = title,
+        Text = text,
+        Duration = 5
+    })
+end
+
+-- Get server list
+function GetServers()
+    local url = "https://games.roblox.com/v1/games/"..PlaceId.."/servers/Public?limit=100"
+    if cursor ~= "" then url = url.."&cursor="..cursor end
+
+    local response
+    if request then
+        response = request({Url = url})
+    elseif syn and syn.request then
+        response = syn.request({Url = url})
+    else
+        error("No HTTP request function found")
+    end
+
+    if not response.Success and response.Success ~= nil then
+        return nil
+    end
+
+    local data = HttpService:JSONDecode(response.Body)
+    cursor = data.nextPageCursor or ""
+    return data.data or {}
+end
+
+-- Count players with targetName in username/displayname
+function HasAFZ(players)
+    local count = 0
+    for _, user in ipairs(players) do
+        local uname = string.lower(user.name or "")
+        local dname = string.lower(user.displayName or "")
+        if string.find(uname, targetName) or string.find(dname, targetName) then
+            count = count + 1
+        end
+    end
+    return count
+end
+
+-- Server Hop to best server with most afz players
+function serverHop()
+    Notify(texts[language].title, texts[language].searchingServer..targetName.."...")
+    bestServer = nil
+    highestCount = 0
+    tried = {}
+    cursor = ""
+
+    for i = 1, 5 do
+        local servers = GetServers()
+        if servers then
+            for _, srv in ipairs(servers) do
+                if srv.playing < srv.maxPlayers and not tried[srv.id] then
+                    tried[srv.id] = true
+                    local count = HasAFZ(srv.players or {})
+                    if count > highestCount then
+                        bestServer = srv
+                        highestCount = count
+                    end
+                end
+            end
+        end
+        if cursor == "" then break end
+    end
+
+    if bestServer then
+        Notify(texts[language].teleporting, string.format(texts[language].foundPlayers, highestCount))
+        wait(2)
+        TeleportService:TeleportToPlaceInstance(PlaceId, bestServer.id, LocalPlayer)
+    else
+        Notify(texts[language].title, texts[language].noServer)
+    end
+end
+
+-- Fling 1: cepat muter dan fling target to void
+function flingTarget(targetPlayer)
+    if not targetPlayer or not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        Notify(texts[language].title, texts[language].playerNotFound)
+        return
+    end
+
+    local hrp = targetPlayer.Character.HumanoidRootPart
+    local localHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not localHRP then return end
+
+    local rotations = 0
+    local maxRotations = 20
+    local angleStep = math.rad(36)
+
+    local conn
+    conn = RunService.Heartbeat:Connect(function()
+        if rotations >= maxRotations then
+            conn:Disconnect()
+            hrp.CFrame = hrp.CFrame + Vector3.new(0, -500, 0)
+            Notify(texts[language].title, string.format(texts[language].flingSuccess, targetPlayer.Name))
+            return
+        end
+
+        localHRP.CFrame = CFrame.new(hrp.Position + Vector3.new(0, 5, 0)) * CFrame.Angles(0, rotations * angleStep, 0)
+        rotations = rotations + 1
+    end)
+end
+
+-- Fling 2: khusus Brookhaven, teleport sofa ke target lalu ke void lalu kembali
+function fling2Brookhaven(targetPlayer)
+    if not targetPlayer or not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        Notify(texts[language].title, texts[language].playerNotFound)
+        return
+    end
+
+    local sofa = nil
+    for _, item in pairs(LocalPlayer.Backpack:GetChildren()) do
+        if string.lower(item.Name):find("sofa") then
+            sofa = item
+            break
+        end
+    end
+
+    if not sofa then
+        Notify(texts[language].title, texts[language].fling2NoSofa)
+        return
+    end
+
+    local targetHRP = targetPlayer.Character.HumanoidRootPart
+    local originalPos = LocalPlayer.Character and LocalPlayer.Character.HumanoidRootPart.Position or Vector3.new(0,0,0)
+
+    -- Teleport sofa to target
+    sofa.Parent = workspace
+    sofa:SetPrimaryPartCFrame(targetHRP.CFrame)
+    wait(0.1)
+    sofa:SetPrimaryPartCFrame(sofa.PrimaryPart.CFrame + Vector3.new(0, -500, 0))
+    wait(0.1)
+
+    -- Return sofa to backpack
+    sofa.Parent = LocalPlayer.Backpack
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(originalPos)
+    end
+
+    Notify(texts[language].title, string.format(texts[language].fling2Success, targetPlayer.Name))
+end
+
+-- Toggle ESP for afz players
+local espEnabled = false
+local espHighlights = {}
+
+function toggleESP()
+    espEnabled = not espEnabled
+    if espEnabled then
+        -- Create highlights for each aFz player
+        for _, player in pairs(Players:GetPlayers()) do
+            if string.lower(player.Name):find(targetName) or (player.DisplayName and string.lower(player.DisplayName):find(targetName)) then
+                local character = player.Character
+                if character and character:FindFirstChild("HumanoidRootPart") then
+                    local highlight = Instance.new("Highlight")
+                    highlight.Adornee = character
+                    highlight.FillColor = Color3.new(1, 0, 0)
+                    highlight.OutlineColor = Color3.new(1, 1, 1)
+                    highlight.Parent = workspace
+                    espHighlights[player] = highlight
+                end
+            end
+        end
+        Notify(texts[language].title, texts[language].espOnNotify)
+    else
+        -- Remove highlights
+        for _, hl in pairs(espHighlights) do
+            if hl and hl.Parent then
+                hl:Destroy()
+            end
+        end
+        espHighlights = {}
+        Notify(texts[language].title, texts[language].espOffNotify)
+    end
+end
+
+-- == UI Creation == --
+-- NOTE: Kamu bisa buat UI sendiri, atau pakai library GUI favoritmu
+-- Script ini hanya backend dan logic, supaya fokus ke gameplay
+
+-- Kamu bisa panggil fungsi-fungsi seperti:
+-- serverHop()
+-- flingTarget(Players:FindFirstChild("targetPlayerName"))
+-- fling2Brookhaven(Players:FindFirstChild("targetPlayerName"))
+-- toggleESP()
+
+-- Jika kamu mau aku bantu buatkan UI lengkapnya, kasih tau ya!
+
+-- == Script siap dipakai! ==
+
+return {
+    ServerHop = serverHop,
+    Fling1 = flingTarget,
+    Fling2 = fling2Brookhaven,
+    ToggleESP = toggleESP,
+    Texts = texts,
+    Language = language,
+    SetLanguage = function(lang)
+        if texts[lang] then
+            language = lang
+            Notify(texts[language].title, texts[language]["languageSet"..string.upper(lang)])
+        end
+    end
+}
