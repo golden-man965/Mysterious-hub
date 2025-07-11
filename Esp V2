@@ -18,413 +18,523 @@ local bestServer = nil
 local highestCount = 0
 local tried = {}
 
--- THEME SETUP
-local theme = {
- dark = {
-  bg = Color3.fromRGB(25, 25, 25),
-  text = Color3.fromRGB(230, 230, 230),
-  button = Color3.fromRGB(50, 50, 50),
-  accent = Color3.fromRGB(180, 0, 180),
-  gradientColors = {Color3.fromRGB(255,0,255), Color3.fromRGB(0,255,255), Color3.fromRGB(255,0,255)}
- },
- light = {
-  bg = Color3.fromRGB(245, 245, 245),
-  text = Color3.fromRGB(30, 30, 30),
-  button = Color3.fromRGB(200, 200, 200),
-  accent = Color3.fromRGB(180, 0, 180),
-  gradientColors = {Color3.fromRGB(255,0,255), Color3.fromRGB(0,255,255), Color3.fromRGB(255,0,255)}
- }
+-- == LANGUAGE SETUP == --
+-- Ganti asset ID ini dengan ID bendera asli yang kamu punya di Roblox
+local flagURLs = {
+  en = "rbxassetid://6023426915", -- USA flag (example)
+  id = "rbxassetid://6023426903"  -- Indonesia flag (example)
 }
-local currentTheme = "dark"
+
+local language = "en"
+
+-- Texts untuk 2 bahasa
+local texts = {
+  en = {
+    enterKey = "Enter Script Key",
+    submit = "Submit Key",
+    title = "PRRI HUNT SCRIPT",
+    serverHopBtn = "Server Hop (Search for afz servers)",
+    fling1Btn = "Fling Target (Method 1)",
+    fling2Btn = "Fling Target (Method 2)",
+    espToggleOn = "Toggle ESP aFz Players (ON)",
+    espToggleOff = "Toggle ESP aFz Players (OFF)",
+    close = "X",
+    enterTarget = "Enter target name for Fling",
+    createdBy = "Created by PRRI | coded by : dark sistem",
+    keyCorrect = "Key correct! Opening GUI...",
+    keyWrong = "Wrong key! Please try again.",
+    searchingServer = "Searching server with name ",
+    teleporting = "Teleporting...",
+    foundPlayers = "Found %d 'aFz' players",
+    noServer = "No suitable server found",
+    flingSuccess = "Target %s flung!",
+    flingNoTarget = "Please enter a target name!",
+    playerNotFound = "Player not found!",
+    espOnNotify = "ESP aFz enabled",
+    espOffNotify = "ESP aFz disabled",
+    fling2NoSofa = "Sofa not found in inventory!",
+    fling2Success = "Sofa voided for target %s",
+    languageSetEn = "Language set to English",
+    languageSetId = "Bahasa diubah ke Indonesia"
+  },
+  id = {
+    enterKey = "Masukkan Key Script",
+    submit = "Submit Key",
+    title = "PRRI HUNT SCRIPT",
+    serverHopBtn = "Server Hop (Cari server afz)",
+    fling1Btn = "Fling Target (Metode 1)",
+    fling2Btn = "Fling Target (Metode 2)",
+    espToggleOn = "Toggle ESP aFz Players (AKTIF)",
+    espToggleOff = "Toggle ESP aFz Players (MATI)",
+    close = "X",
+    enterTarget = "Masukkan nama target untuk Fling",
+    createdBy = "Dibuat oleh prri | coded by : dark sistem",
+    keyCorrect = "Key benar! Membuka GUI...",
+    keyWrong = "Key salah! Silahkan coba lagi.",
+    searchingServer = "Mencari server dengan nama ",
+    teleporting = "Teleporting...",
+    foundPlayers = "Ditemukan %d pemain 'aFz'",
+    noServer = "Tidak ada server cocok ditemukan",
+    flingSuccess = "Target %s sudah di-fling!",
+    flingNoTarget = "Masukkan nama target dulu!",
+    playerNotFound = "Player tidak ditemukan!",
+    espOnNotify = "ESP aFz diaktifkan",
+    espOffNotify = "ESP aFz dimatikan",
+    fling2NoSofa = "Sofa tidak ditemukan di inventory!",
+    fling2Success = "Sofa di-void-kan untuk target %s",
+    languageSetEn = "Language set to English",
+    languageSetId = "Bahasa diubah ke Indonesia"
+  }
+}
 
 -- == FUNCTIONS == --
 
 function Notify(title, text)
- StarterGui:SetCore("SendNotification", {
-  Title = title,
-  Text = text,
-  Duration = 5
- })
+  StarterGui:SetCore("SendNotification", {
+    Title = title,
+    Text = text,
+    Duration = 5
+  })
 end
 
 -- Get server list
 function GetServers()
- local url = "https://games.roblox.com/v1/games/"..PlaceId.."/servers/Public?limit=100"
- if cursor ~= "" then url = url.."&cursor="..cursor end
- local response = request and request({Url = url}) or syn and syn.request and syn.request({Url = url}) or error("No HTTP request function found")
- if not response.Success and not response.Success == nil then
-  return nil
- end
- local data = HttpService:JSONDecode(response.Body)
- cursor = data.nextPageCursor or ""
- return data.data or {}
+  local url = "https://games.roblox.com/v1/games/"..PlaceId.."/servers/Public?limit=100"
+  if cursor ~= "" then url = url.."&cursor="..cursor end
+  local response = request and request({Url = url}) or syn and syn.request and syn.request({Url = url}) or error("No HTTP request function found")
+  if not response.Success and not response.Success == nil then
+    return nil
+  end
+  local data = HttpService:JSONDecode(response.Body)
+  cursor = data.nextPageCursor or ""
+  return data.data or {}
 end
 
 -- Count players with targetName in username/displayname
 function HasAFZ(players)
- local count = 0
- for _, user in ipairs(players) do
-  local uname = string.lower(user.name or "")
-  local dname = string.lower(user.displayName or "")
-  if string.find(uname, targetName) or string.find(dname, targetName) then
-   count += 1
+  local count = 0
+  for _, user in ipairs(players) do
+    local uname = string.lower(user.name or "")
+    local dname = string.lower(user.displayName or "")
+    if string.find(uname, targetName) or string.find(dname, targetName) then
+      count += 1
+    end
   end
- end
- return count
+  return count
 end
 
 -- Server Hop to best server with most afz players
 function serverHop()
- Notify("Server Scanner", "Mencari server dengan nama "..targetName.."...")
- bestServer = nil
- highestCount = 0
- tried = {}
- cursor = ""
- for i = 1, 5 do
-  local servers = GetServers()
-  if servers then
-   for _, srv in ipairs(servers) do
-    if srv.playing < srv.maxPlayers and not tried[srv.id] then
-     tried[srv.id] = true
-     local count = HasAFZ(srv.players or {})
-     if count > highestCount then
-      bestServer = srv
-      highestCount = count
-     end
+  Notify(texts[language].title, texts[language].searchingServer..targetName.."...")
+  bestServer = nil
+  highestCount = 0
+  tried = {}
+  cursor = ""
+  for i = 1, 5 do
+    local servers = GetServers()
+    if servers then
+      for _, srv in ipairs(servers) do
+        if srv.playing < srv.maxPlayers and not tried[srv.id] then
+          tried[srv.id] = true
+          local count = HasAFZ(srv.players or {})
+          if count > highestCount then
+            bestServer = srv
+            highestCount = count
+          end
+        end
+      end
     end
-   end
+    if cursor == "" then break end
   end
-  if cursor == "" then break end
- end
- if bestServer then
-  Notify("Teleporting...", "Ditemukan "..highestCount.." pemain 'aFz'")
-  wait(2)
-  TeleportService:TeleportToPlaceInstance(PlaceId, bestServer.id, LocalPlayer)
- else
-  Notify("Gagal", "Tidak ada server cocok ditemukan")
- end
+  if bestServer then
+    Notify(texts[language].teleporting, string.format(texts[language].foundPlayers, highestCount))
+    wait(2)
+    TeleportService:TeleportToPlaceInstance(PlaceId, bestServer.id, LocalPlayer)
+  else
+    Notify(texts[language].title, texts[language].noServer)
+  end
 end
 
 -- Fling 1: cepat muter dan fling target to void
 function flingTarget(targetPlayer)
- if not targetPlayer or not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
- local hrp = targetPlayer.Character.HumanoidRootPart
- local localHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
- if not localHRP then return end
-
- local rotations = 0
- local maxRotations = 20
- local angleStep = math.rad(36)
-
- local conn
- conn = RunService.Heartbeat:Connect(function()
-  if rotations >= maxRotations then
-   conn:Disconnect()
-   hrp.CFrame = hrp.CFrame + Vector3.new(0, -500, 0)
-   Notify("Fling", "Target "..targetPlayer.Name.." sudah di-void!")
-   return
+  if not targetPlayer or not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") then 
+    Notify(texts[language].title, texts[language].playerNotFound)
+    return 
   end
-  localHRP.CFrame = localHRP.CFrame * CFrame.Angles(0, angleStep, 0)
-  localHRP.CFrame = CFrame.new(hrp.Position + Vector3.new(0, 5, 0)) * CFrame.Angles(0, rotations*angleStep, 0)
-  rotations += 1
- end)
+  local hrp = targetPlayer.Character.HumanoidRootPart
+  local localHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+  if not localHRP then return end
+
+  local rotations = 0
+  local maxRotations = 20
+  local angleStep = math.rad(36)
+
+  local conn
+  conn = RunService.Heartbeat:Connect(function()
+    if rotations >= maxRotations then
+      conn:Disconnect()
+      hrp.CFrame = hrp.CFrame + Vector3.new(0, -500, 0)
+      Notify(texts[language].title, string.format(texts[language].flingSuccess, targetPlayer.Name))
+      return
+    end
+    localHRP.CFrame = localHRP.CFrame * CFrame.Angles(0, angleStep, 0)
+    localHRP.CFrame = CFrame.new(hrp.Position + Vector3.new(0, 5, 0)) * CFrame.Angles(0, rotations*angleStep, 0)
+    rotations += 1
+  end)
 end
 
 -- Fling 2: khusus Brookhaven, teleport sofa ke target lalu ke void lalu kembali
 function fling2Brookhaven(targetPlayer)
- if not targetPlayer or not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
- local sofa = nil
- for _, item in pairs(LocalPlayer.Backpack:GetChildren()) do
-  if string.lower(item.Name):find("sofa") then
-   sofa = item
-   break
+  if not targetPlayer or not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") then 
+    Notify(texts[language].title, texts[language].playerNotFound)
+    return 
   end
- end
- if not sofa then
-  Notify("Fling 2", "Sofa tidak ditemukan di inventory!")
-  return
- end
+  local sofa = nil
+  for _, item in pairs(LocalPlayer.Backpack:GetChildren()) do
+    if string.lower(item.Name):find("sofa") then
+      sofa = item
+      break
+    end
+  end
+  if not sofa then
+    Notify(texts[language].title, texts[language].fling2NoSofa)
+    return
+  end
 
- local hrpTarget = targetPlayer.Character.HumanoidRootPart
- local localHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
- if not localHRP then return end
+  local hrpTarget = targetPlayer.Character.HumanoidRootPart
+  local localHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+  if not localHRP then return end
 
- local originalPos = localHRP.CFrame
+  local originalPos = localHRP.CFrame
 
- sofa.Parent = workspace
- sofa.CFrame = localHRP.CFrame
- wait(0.1)
+  sofa.Parent = workspace
+  sofa.CFrame = localHRP.CFrame
+  wait(0.1)
 
- sofa.CFrame = hrpTarget.CFrame + Vector3.new(0, 5, 0)
- wait(0.3)
+  sofa.CFrame = hrpTarget.CFrame + Vector3.new(0, 5, 0)
+  wait(0.3)
 
- sofa.CFrame = sofa.CFrame + Vector3.new(0, -500, 0)
- Notify("Fling 2", "Sofa di-void-kan untuk target "..targetPlayer.Name)
+  sofa.CFrame = sofa.CFrame + Vector3.new(0, -500, 0)
+  Notify(texts[language].title, string.format(texts[language].fling2Success, targetPlayer.Name))
 
- wait(1)
+  wait(1)
 
- sofa.CFrame = originalPos
- sofa.Parent = LocalPlayer.Backpack
+  sofa.CFrame = originalPos
+  sofa.Parent = LocalPlayer.Backpack
 end
 
 -- Animate GUI transitions
 local function tweenGui(obj, props, time, style, dir)
- return TweenService:Create(obj, TweenInfo.new(time or 0.4, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out), props)
+  return TweenService:Create(obj, TweenInfo.new(time or 0.4, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out), props)
 end
 
 -- Background gradient & animation
 local function createBackgroundAnimation(parent)
- local bg = Instance.new("Frame", parent)
- bg.Size = UDim2.new(1, 0, 1, 0)
- bg.Position = UDim2.new(0, 0, 0, 0)
- bg.BackgroundTransparency = 1
- bg.ZIndex = 0
+  local bg = Instance.new("Frame", parent)
+  bg.Size = UDim2.new(1, 0, 1, 0)
+  bg.Position = UDim2.new(0, 0, 0, 0)
+  bg.BackgroundTransparency = 1
+  bg.ZIndex = 0
 
- local gradient = Instance.new("UIGradient", bg)
- gradient.Rotation = 45
- gradient.Color = ColorSequence.new(theme[currentTheme].gradientColors)
+  local gradient = Instance.new("UIGradient", bg)
+  gradient.Rotation = 45
+  gradient.Color = ColorSequence.new(theme[currentTheme].gradientColors)
 
- spawn(function()
-  while parent.Parent and parent.Parent:IsA("PlayerGui") do
-   for i = 0, 1, 0.005 do
-    gradient.Offset = Vector2.new(i, i)
-    wait(0.03)
-   end
-   for i = 1, 0, -0.005 do
-    gradient.Offset = Vector2.new(i, i)
-    wait(0.03)
-   end
-  end
- end)
-
- return bg
+  spawn(function()
+    while parent.Parent and parent.Parent:IsA("PlayerGui") do
+      for i = 0, 1, 0.01 do
+        gradient.Rotation = i * 360
+        wait(0.03)
+      end
+    end
+  end)
+  return bg
 end
 
--- Clear ESP labels
-local espObjects = {}
-local espEnabled = false
+-- == GUI CONSTRUCTION == --
 
-local function clearESP()
- for _, v in pairs(espObjects) do
-  if v.label then v.label:Destroy() end
-  if v.gui then v.gui:Destroy() end
- end
- espObjects = {}
-end
+-- Main GUI setup
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "PRRI HUNT GUI"
+screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
--- ESP Update Loop
-RunService.RenderStepped:Connect(function()
- if not espEnabled then
-  clearESP()
-  return
- end
- for _, player in pairs(Players:GetPlayers()) do
-  if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-   if string.sub(string.lower(player.Name), 1, #targetPrefix) == targetPrefix then
-    local hrp = player.Character.HumanoidRootPart
-    local distance = (LocalPlayer.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
-    if not espObjects[player] then
-     local billboard = Instance.new("BillboardGui", hrp)
-     billboard.Adornee = hrp
-     billboard.Size = UDim2.new(0, 200, 0, 50)
-     billboard.StudsOffset = Vector3.new(0, 3, 0)
-     billboard.AlwaysOnTop = true
-
-     local label = Instance.new("TextLabel", billboard)
-     label.Size = UDim2.new(1, 0, 1, 0)
-     label.BackgroundTransparency = 1
-     label.TextColor3 = Color3.fromRGB(255, 0, 255)
-     label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-     label.TextStrokeTransparency = 0
-     label.Text = player.Name
-     label.Font = Enum.Font.GothamBold
-     label.TextScaled = true
-
-     espObjects[player] = {label = label, gui = billboard}
-    end
-   else
-    if espObjects[player] then
-     espObjects[player].label:Destroy()
-     espObjects[player].gui:Destroy()
-     espObjects[player] = nil
-    end
-   end
-  end
- end
-end)
-
--- == GUI == --
-
--- GUI utama
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "Prri | Script"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-
-local mainFrame = Instance.new("Frame", ScreenGui)
-mainFrame.Size = UDim2.new(0, 350, 0, 400)
-mainFrame.Position = UDim2.new(0.5, -175, 0.5, -200)
-mainFrame.BackgroundColor3 = theme[currentTheme].bg
+local mainFrame = Instance.new("Frame", screenGui)
+mainFrame.Size = UDim2.new(0, 420, 0, 450)
+mainFrame.Position = UDim2.new(0.5, -210, 0.5, -225)
+mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 mainFrame.BorderSizePixel = 0
 mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-mainFrame.Visible = false
+mainFrame.ClipsDescendants = true
 
-createBackgroundAnimation(mainFrame)
+-- Rounded corners
+local corner = Instance.new("UICorner", mainFrame)
+corner.CornerRadius = UDim.new(0, 14)
 
+-- Title label
 local title = Instance.new("TextLabel", mainFrame)
-title.Size = UDim2.new(1, 0, 0, 50)
+title.Size = UDim2.new(1, -20, 0, 40)
+title.Position = UDim2.new(0, 10, 0, 10)
 title.BackgroundTransparency = 1
-title.Text = "PRRI HUNT SCRIPT"
 title.Font = Enum.Font.GothamBold
-title.TextColor3 = theme[currentTheme].text
-title.TextScaled = true
+title.TextSize = 24
+title.TextColor3 = Color3.fromRGB(240, 240, 240)
+title.TextXAlignment = Enum.TextXAlignment.Center
+title.Text = texts[language].title
 
+-- Close button
 local closeBtn = Instance.new("TextButton", mainFrame)
-closeBtn.Size = UDim2.new(0, 40, 0, 30)
+closeBtn.Size = UDim2.new(0, 35, 0, 30)
 closeBtn.Position = UDim2.new(1, -45, 0, 10)
-closeBtn.Text = "X"
+closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+closeBtn.TextColor3 = Color3.new(1,1,1)
 closeBtn.Font = Enum.Font.GothamBold
-closeBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
-closeBtn.BackgroundColor3 = Color3.fromRGB(50, 0, 0)
-closeBtn.BorderSizePixel = 0
+closeBtn.TextSize = 20
+closeBtn.Text = texts[language].close
 closeBtn.AutoButtonColor = false
+closeBtn.ClipsDescendants = true
+
 closeBtn.MouseEnter:Connect(function()
- closeBtn.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
+  tweenGui(closeBtn, {BackgroundColor3 = Color3.fromRGB(255, 75, 75)}, 0.2):Play()
 end)
 closeBtn.MouseLeave:Connect(function()
- closeBtn.BackgroundColor3 = Color3.fromRGB(50, 0, 0)
+  tweenGui(closeBtn, {BackgroundColor3 = Color3.fromRGB(200, 50, 50)}, 0.2):Play()
 end)
+
 closeBtn.MouseButton1Click:Connect(function()
- mainFrame.Visible = false
- Notify("prri Script", "Script GUI ditutup")
+  screenGui.Enabled = false
 end)
 
-local btnServerHop = Instance.new("TextButton", mainFrame)
-btnServerHop.Size = UDim2.new(0, 320, 0, 50)
-btnServerHop.Position = UDim2.new(0, 15, 0, 70)
-btnServerHop.Text = "Server Hop (Cari server afz)"
-btnServerHop.Font = Enum.Font.GothamBold
-btnServerHop.TextColor3 = theme[currentTheme].text
-btnServerHop.BackgroundColor3 = theme[currentTheme].button
-btnServerHop.BorderSizePixel = 0
-btnServerHop.MouseButton1Click:Connect(serverHop)
+-- TextBox for key entry
+local keyTitle = Instance.new("TextLabel", mainFrame)
+keyTitle.Size = UDim2.new(1, -40, 0, 30)
+keyTitle.Position = UDim2.new(0, 20, 0, 70)
+keyTitle.BackgroundTransparency = 1
+keyTitle.Font = Enum.Font.GothamMedium
+keyTitle.TextSize = 20
+keyTitle.TextColor3 = Color3.fromRGB(200, 200, 200)
+keyTitle.Text = texts[language].enterKey
+keyTitle.TextXAlignment = Enum.TextXAlignment.Center
 
-local btnESP = Instance.new("TextButton", mainFrame)
-btnESP.Size = UDim2.new(0, 320, 0, 50)
-btnESP.Position = UDim2.new(0, 15, 0, 130)
-btnESP.Text = "Toggle ESP aFz Players"
-btnESP.Font = Enum.Font.GothamBold
-btnESP.TextColor3 = theme[currentTheme].text
-btnESP.BackgroundColor3 = theme[currentTheme].button
-btnESP.BorderSizePixel = 0
-btnESP.MouseButton1Click:Connect(function()
- espEnabled = not espEnabled
- if espEnabled then
-  Notify("ESP", "ESP aFz diaktifkan")
- else
-  clearESP()
-  Notify("ESP", "ESP aFz dimatikan")
- end
+local keyInput = Instance.new("TextBox", mainFrame)
+keyInput.Size = UDim2.new(0.7, 0, 0, 35)
+keyInput.Position = UDim2.new(0.15, 0, 0, 110)
+keyInput.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+keyInput.TextColor3 = Color3.fromRGB(230, 230, 230)
+keyInput.Font = Enum.Font.Gotham
+keyInput.TextSize = 18
+keyInput.PlaceholderText = ""
+keyInput.ClearTextOnFocus = false
+keyInput.Text = ""
+
+local keyButton = Instance.new("TextButton", mainFrame)
+keyButton.Size = UDim2.new(0.4, 0, 0, 35)
+keyButton.Position = UDim2.new(0.3, 0, 0, 150)
+keyButton.BackgroundColor3 = Color3.fromRGB(70, 130, 180)
+keyButton.Font = Enum.Font.GothamBold
+keyButton.TextSize = 18
+keyButton.TextColor3 = Color3.new(1,1,1)
+keyButton.Text = texts[language].submit
+keyButton.AutoButtonColor = false
+
+keyButton.MouseEnter:Connect(function()
+  tweenGui(keyButton, {BackgroundColor3 = Color3.fromRGB(100, 180, 255)}, 0.2):Play()
+end)
+keyButton.MouseLeave:Connect(function()
+  tweenGui(keyButton, {BackgroundColor3 = Color3.fromRGB(70, 130, 180)}, 0.2):Play()
 end)
 
-local targetInput = Instance.new("TextBox", mainFrame)
-targetInput.Size = UDim2.new(0, 320, 0, 40)
-targetInput.Position = UDim2.new(0, 15, 0, 190)
-targetInput.PlaceholderText = "Masukkan nama target untuk Fling"
+-- After key is correct, show main options frame
+local optionsFrame = Instance.new("Frame", mainFrame)
+optionsFrame.Size = UDim2.new(1, -40, 1, -210)
+optionsFrame.Position = UDim2.new(0, 20, 0, 190)
+optionsFrame.BackgroundTransparency = 1
+optionsFrame.Visible = false
+
+-- Target input for fling
+local targetInput = Instance.new("TextBox", optionsFrame)
+targetInput.Size = UDim2.new(0.6, 0, 0, 35)
+targetInput.Position = UDim2.new(0, 0, 0, 0)
+targetInput.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+targetInput.TextColor3 = Color3.fromRGB(230, 230, 230)
+targetInput.Font = Enum.Font.Gotham
+targetInput.TextSize = 18
+targetInput.PlaceholderText = texts[language].enterTarget
 targetInput.ClearTextOnFocus = false
 targetInput.Text = ""
 
-local btnFling1 = Instance.new("TextButton", mainFrame)
-btnFling1.Size = UDim2.new(0, 150, 0, 50)
-btnFling1.Position = UDim2.new(0, 15, 0, 240)
-btnFling1.Text = "Fling Target (Metode 1)"
+-- Buttons
+local btnServerHop = Instance.new("TextButton", optionsFrame)
+btnServerHop.Size = UDim2.new(0.4, 0, 0, 40)
+btnServerHop.Position = UDim2.new(0.62, 0, 0, 0)
+btnServerHop.BackgroundColor3 = Color3.fromRGB(60, 150, 80)
+btnServerHop.Font = Enum.Font.GothamBold
+btnServerHop.TextSize = 18
+btnServerHop.TextColor3 = Color3.new(1,1,1)
+btnServerHop.Text = texts[language].serverHopBtn
+btnServerHop.AutoButtonColor = false
+
+local btnFling1 = Instance.new("TextButton", optionsFrame)
+btnFling1.Size = UDim2.new(0.48, 0, 0, 40)
+btnFling1.Position = UDim2.new(0, 0, 0, 50)
+btnFling1.BackgroundColor3 = Color3.fromRGB(150, 60, 60)
 btnFling1.Font = Enum.Font.GothamBold
-btnFling1.TextColor3 = theme[currentTheme].text
-btnFling1.BackgroundColor3 = theme[currentTheme].button
-btnFling1.BorderSizePixel = 0
-btnFling1.MouseButton1Click:Connect(function()
- local targetNameInput = targetInput.Text
- if targetNameInput == "" then
-  Notify("Fling", "Masukkan nama target dulu!")
-  return
- end
- local targetPlayer = Players:FindFirstChild(targetNameInput)
- if not targetPlayer then
-  Notify("Fling", "Player tidak ditemukan!")
-  return
- end
- flingTarget(targetPlayer)
-end)
+btnFling1.TextSize = 18
+btnFling1.TextColor3 = Color3.new(1,1,1)
+btnFling1.Text = texts[language].fling1Btn
+btnFling1.AutoButtonColor = false
 
-local btnFling2 = Instance.new("TextButton", mainFrame)
-btnFling2.Size = UDim2.new(0, 150, 0, 50)
-btnFling2.Position = UDim2.new(0, 185, 0, 240)
-btnFling2.Text = "Fling Target (Metode 2)"
+local btnFling2 = Instance.new("TextButton", optionsFrame)
+btnFling2.Size = UDim2.new(0.48, 0, 0, 40)
+btnFling2.Position = UDim2.new(0.52, 0, 0, 50)
+btnFling2.BackgroundColor3 = Color3.fromRGB(150, 60, 150)
 btnFling2.Font = Enum.Font.GothamBold
-btnFling2.TextColor3 = theme[currentTheme].text
-btnFling2.BackgroundColor3 = theme[currentTheme].button
-btnFling2.BorderSizePixel = 0
-btnFling2.MouseButton1Click:Connect(function()
- local targetNameInput = targetInput.Text
- if targetNameInput == "" then
-  Notify("Fling 2", "Masukkan nama target dulu!")
-  return
- end
- local targetPlayer = Players:FindFirstChild(targetNameInput)
- if not targetPlayer then
-  Notify("Fling 2", "Player tidak ditemukan!")
-  return
- end
- fling2Brookhaven(targetPlayer)
-end)
+btnFling2.TextSize = 18
+btnFling2.TextColor3 = Color3.new(1,1,1)
+btnFling2.Text = texts[language].fling2Btn
+btnFling2.AutoButtonColor = false
 
-local keyFrame = Instance.new("Frame")
-keyFrame.Size = UDim2.new(0, 350, 0, 130)
-keyFrame.Position = UDim2.new(0.5, -175, 0.5, -65)
-keyFrame.BackgroundColor3 = theme[currentTheme].bg
-keyFrame.BorderSizePixel = 0
-keyFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-keyFrame.Parent = ScreenGui
+local btnESP = Instance.new("TextButton", optionsFrame)
+btnESP.Size = UDim2.new(1, 0, 0, 40)
+btnESP.Position = UDim2.new(0, 0, 0, 100)
+btnESP.BackgroundColor3 = Color3.fromRGB(60, 60, 150)
+btnESP.Font = Enum.Font.GothamBold
+btnESP.TextSize = 18
+btnESP.TextColor3 = Color3.new(1,1,1)
+btnESP.Text = texts[language].espToggleOff
+btnESP.AutoButtonColor = false
 
-createBackgroundAnimation(keyFrame)
+local creditLabel = Instance.new("TextLabel", mainFrame)
+creditLabel.Size = UDim2.new(1, -20, 0, 30)
+creditLabel.Position = UDim2.new(0, 10, 1, -35)
+creditLabel.BackgroundTransparency = 1
+creditLabel.Font = Enum.Font.GothamMedium
+creditLabel.TextSize = 14
+creditLabel.TextColor3 = Color3.fromRGB(120, 120, 120)
+creditLabel.Text = texts[language].createdBy
+creditLabel.TextXAlignment = Enum.TextXAlignment.Center
 
-local keyTitle = Instance.new("TextLabel", keyFrame)
-keyTitle.Size = UDim2.new(1, 0, 0, 40)
-keyTitle.Position = UDim2.new(0, 0, 0, 0)
-keyTitle.BackgroundTransparency = 1
-keyTitle.Text = "Masukkan Key Script"
-keyTitle.Font = Enum.Font.GothamBold
-keyTitle.TextColor3 = theme[currentTheme].text
-keyTitle.TextScaled = true
+-- Variables for ESP toggle
+local espEnabled = false
 
-local keyInput = Instance.new("TextBox", keyFrame)
-keyInput.Size = UDim2.new(0, 320, 0, 40)
-keyInput.Position = UDim2.new(0, 15, 0, 50)
-keyInput.ClearTextOnFocus = true
-keyInput.PlaceholderText = "Masukkan Key Disini"
-keyInput.Text = ""
-
-local keyButton = Instance.new("TextButton", keyFrame)
-keyButton.Size = UDim2.new(0, 320, 0, 40)
-keyButton.Position = UDim2.new(0, 15, 0, 95)
-keyButton.Text = "Submit Key"
-keyButton.Font = Enum.Font.GothamBold
-keyButton.TextColor3 = theme[currentTheme].text
-keyButton.BackgroundColor3 = theme[currentTheme].button
-keyButton.BorderSizePixel = 0
+-- == GUI BEHAVIOR == --
 
 keyButton.MouseButton1Click:Connect(function()
- local inputKey = keyInput.Text
- if inputKey == validKey then
-  Notify("prri Script", "Key benar! Membuka GUI...")
-  keyFrame.Visible = false
-  mainFrame.Visible = true
- else
-  Notify("prri Script", "Key salah! Silahkan coba lagi.")
-  keyInput.Text = ""
- end
+  local key = keyInput.Text
+  if key == validKey then
+    Notify(texts[language].title, texts[language].keyCorrect)
+    optionsFrame.Visible = true
+    keyInput.Visible = false
+    keyButton.Visible = false
+    keyTitle.Visible = false
+  else
+    Notify(texts[language].title, texts[language].keyWrong)
+  end
 end)
 
--- Mulai dengan menampilkan keyFrame dulu
-mainFrame.Visible = false
-keyFrame.Visible = true
+btnServerHop.MouseButton1Click:Connect(function()
+  spawn(serverHop)
+end)
+
+btnFling1.MouseButton1Click:Connect(function()
+  local target = targetInput.Text
+  if target == "" then
+    Notify(texts[language].title, texts[language].flingNoTarget)
+    return
+  end
+  local plr = Players:FindFirstChild(target)
+  if not plr then
+    Notify(texts[language].title, texts[language].playerNotFound)
+    return
+  end
+  flingTarget(plr)
+end)
+
+btnFling2.MouseButton1Click:Connect(function()
+  local target = targetInput.Text
+  if target == "" then
+    Notify(texts[language].title, texts[language].flingNoTarget)
+    return
+  end
+  local plr = Players:FindFirstChild(target)
+  if not plr then
+    Notify(texts[language].title, texts[language].playerNotFound)
+    return
+  end
+  fling2Brookhaven(plr)
+end)
+
+btnESP.MouseButton1Click:Connect(function()
+  espEnabled = not espEnabled
+  btnESP.Text = espEnabled and texts[language].espToggleOn or texts[language].espToggleOff
+  Notify(texts[language].title, espEnabled and texts[language].espOnNotify or texts[language].espOffNotify)
+  -- Implementasi ESP sebenarnya bisa kamu tambah sendiri sesuai kebutuhan
+end)
+
+-- == LANGUAGE SELECTOR UI == --
+
+local langFrame = Instance.new("Frame", mainFrame)
+langFrame.Size = UDim2.new(0, 80, 0, 40)
+langFrame.Position = UDim2.new(1, -90, 0, 50)
+langFrame.BackgroundTransparency = 1
+
+local flagEn = Instance.new("ImageButton", langFrame)
+flagEn.Size = UDim2.new(0, 35, 0, 30)
+flagEn.Position = UDim2.new(0, 0, 0, 0)
+flagEn.BackgroundTransparency = 1
+flagEn.Image = flagURLs.en
+flagEn.ScaleType = Enum.ScaleType.Fit
+
+local flagId = Instance.new("ImageButton", langFrame)
+flagId.Size = UDim2.new(0, 35, 0, 30)
+flagId.Position = UDim2.new(0, 45, 0, 0)
+flagId.BackgroundTransparency = 1
+flagId.Image = flagURLs.id
+flagId.ScaleType = Enum.ScaleType.Fit
+
+local function updateTexts()
+  keyTitle.Text = texts[language].enterKey
+  keyButton.Text = texts[language].submit
+  title.Text = texts[language].title
+  btnServerHop.Text = texts[language].serverHopBtn
+  btnFling1.Text = texts[language].fling1Btn
+  btnFling2.Text = texts[language].fling2Btn
+  btnESP.Text = espEnabled and texts[language].espToggleOn or texts[language].espToggleOff
+  closeBtn.Text = texts[language].close
+  targetInput.PlaceholderText = texts[language].enterTarget
+  creditLabel.Text = texts[language].createdBy
+end
+
+local function setLanguage(lang)
+  language = lang
+  updateTexts()
+  Notify(texts[language].title, lang == "en" and texts[language].languageSetEn or texts[language].languageSetId)
+end
+
+flagEn.MouseButton1Click:Connect(function()
+  setLanguage("en")
+end)
+
+flagId.MouseButton1Click:Connect(function()
+  setLanguage("id")
+end)
+
+-- Set default language text on GUI start
+updateTexts()
+
+-- == OPTIONAL: Background gradient animation for mainFrame ==
+local gradient = Instance.new("UIGradient", mainFrame)
+gradient.Rotation = 45
+gradient.Color = ColorSequence.new{
+  ColorSequenceKeypoint.new(0, Color3.fromRGB(70, 130, 180)),
+  ColorSequenceKeypoint.new(1, Color3.fromRGB(25, 25, 30))
+}
+
+-- Rotate gradient slowly
+spawn(function()
+  while screenGui.Parent do
+    gradient.Rotation = (gradient.Rotation + 1) % 360
+    wait(0.05)
+  end
+end)
+
