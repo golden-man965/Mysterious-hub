@@ -1,23 +1,20 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-    Name = "Mysterious hub",
-    Icon = "file-code-2", -- Harus string (Lucide icon), atau angka (Roblox asset ID)
-    LoadingTitle = "Mysterious hub loading!",
-    LoadingSubtitle = "Coded by : dark sistem",
-    ShowText = "Rayfield", 
-    Theme = "DarkBlue", -- Cek di https://docs.sirius.menu/rayfield/configuration/themes
+    Name = "Mysterious Hub",
+    Icon = "file-code-2",
+    LoadingTitle = "Mysterious Hub loading!",
+    LoadingSubtitle = "Coded by : Dark Sistem",
+    ShowText = "Rayfield",
+    Theme = "DarkBlue",
     ToggleUIKeybind = "K",
-
     DisableRayfieldPrompts = false,
     DisableBuildWarnings = false,
-
     ConfigurationSaving = {
         Enabled = true,
-        FolderName = "Mysterious", -- Harus string, tidak boleh pakai tanda tanya
+        FolderName = "Mysterious",
         FileName = "Mysterious Hub"
     },
-
     KeySystem = true,
     KeySettings = {
         Title = "Mysterious Hub",
@@ -26,254 +23,208 @@ local Window = Rayfield:CreateWindow({
         FileName = "Key",
         SaveKey = false,
         GrabKeyFromSite = false,
-        Key = {"LOL11"} -- List key yang diterima
+        Key = {"LOL11"}
     }
 })
 
-local UniversalTab = Window:CreateTab("Brookhaven script", "globe")
-local Section = UniversalTab:CreateSection("script")
+local usersDatabase = {
+    ["admin"] = "adminpassword",
+    ["creator1"] = "creatorpassword",
+    ["user1"] = "userpassword"
+}
 
-local Button = UniversalTab:CreateButton({
-    Name = "infinity yield",
-    Callback = function()
-        loadstring(game:HttpGet("https://rawscripts.net/raw/Infinite-Yield_500"))()
+local function verifyLogin(username, password)
+    if usersDatabase[username] == password then
+        return true
+    else
+        return false
+    end
+end
+
+local function createAccount(username, password)
+    if usersDatabase[username] then
+        Rayfield:Notify({
+            Title = "Account Creation Failed",
+            Content = "This username is already taken. Please choose another one.",
+            Duration = 3,
+            Image = 10511856020,
+        })
+        return false
+    else
+        usersDatabase[username] = password
+        Rayfield:Notify({
+            Title = "Account Created",
+            Content = "Your account has been successfully created.",
+            Duration = 3,
+            Image = 10511856020,
+        })
+        return true
+    end
+end
+
+local loginTab = Window:CreateTab("Login/Register", "user")
+
+loginTab:CreateInput({
+    Name = "Username",
+    PlaceholderText = "Enter your username",
+    Callback = function(input)
+        loginTab:CreateInput({
+            Name = "Password",
+            PlaceholderText = "Enter your password",
+            TextInputType = Enum.TextInputType.Password,
+            Callback = function(passwordInput)
+                loginTab:CreateButton({
+                    Name = "Login",
+                    Callback = function()
+                        if verifyLogin(input, passwordInput) then
+                            Rayfield:Notify({
+                                Title = "Login Successful",
+                                Content = "Welcome back, " .. input .. "!",
+                                Duration = 3,
+                                Image = 10511856020,
+                            })
+                            if input == "admin" then
+                                openAdminControls()
+                            elseif input == "creator1" then
+                                openCreatorControls()
+                            end
+                        else
+                            Rayfield:Notify({
+                                Title = "Login Failed",
+                                Content = "Incorrect username or password. Please try again.",
+                                Duration = 3,
+                                Image = 10511856020,
+                            })
+                        end
+                    end,
+                })
+                
+                loginTab:CreateButton({
+                    Name = "Create Account",
+                    Callback = function()
+                        if createAccount(input, passwordInput) then
+                            print("Account created for: " .. input)
+                        end
+                    end,
+                })
+            end,
+        })
     end,
 })
 
-local Button = UniversalTab:CreateButton({
-   Name = "REDzHUB",
-   Callback = function()
-   loadstring(game:HttpGet("https://raw.githubusercontent.com/REDzHUB/REDzHUB/main/REDzHUB"))()
-   end,
-})
+local function openAdminControls()
+    local AdminTab = Window:CreateTab("Admin Controls", "shield")
 
+    AdminTab:CreateButton({
+        Name = "Manage Scripts",
+        Callback = function()
+            print("Admin is managing scripts...")
+        end,
+    })
 
-local Button = UniversalTab:CreateButton({
-   Name = "The Dark0ness Brook Gui",
-   Callback = function()
-   loadstring(game:HttpGet("https://rawscripts.net/raw/Brookhaven-RP-The-Darkones-Brookh4ven-Gui-16280"))() 
-   end,
-})
+    AdminTab:CreateButton({
+        Name = "Server Management",
+        Callback = function()
+            game:GetService("TeleportService"):Teleport(game.PlaceId, game.Players.LocalPlayer)
+        end,
+    })
 
+    AdminTab:CreateButton({
+        Name = "Manage Players",
+        Callback = function()
+            print("Admin is managing players...")
+        end,
+    })
 
-local Button = UniversalTab:CreateButton({
-   Name = "Invisible Button",
-   Callback = function()
-   loadstring(game:HttpGet("https://raw.githubusercontent.com/GhostPlayer352/Test4/main/Invisible%20Gui"))() 
-   end,
-})
+    AdminTab:CreateButton({
+        Name = "View Activity Logs",
+        Callback = function()
+            print("Displaying activity logs...")
+        end,
+    })
+end
 
+local function openCreatorControls()
+    local CreatorTab = Window:CreateTab("Creator Controls", "cogs")
 
-local Button = UniversalTab:CreateButton({
-   Name = "Sander Hub X",
-   Callback = function()
-   loadstring(game:HttpGet("https://rawscripts.net/raw/Brookhaven-RP-sander-x-27361"))() 
-   end,
-})
+    CreatorTab:CreateButton({
+        Name = "Add Custom Script",
+        Callback = function()
+            print("Creator is adding a custom script...")
+        end,
+    })
 
+    CreatorTab:CreateButton({
+        Name = "Customize UI",
+        Callback = function()
+            print("Creator is customizing UI...")
+        end,
+    })
 
-local Button = UniversalTab:CreateButton({
-   Name = "R4D No Key",
-   Callback = function()
-   loadstring(game:HttpGet("https://rawscripts.net/raw/Brookhaven-RP-R4D-TROLL-NO-KEY-17625"))() 
-   end,
-})
+    CreatorTab:CreateButton({
+        Name = "Add New Game Features",
+        Callback = function()
+            print("Creator is adding new features...")
+        end,
+    })
+end
 
+local function openStore()
+    print("Opening the in-game store...")
+end
 
-local Button = UniversalTab:CreateButton({
-   Name = "Salvatore",
-   Callback = function()
-loadstring(game:HttpGet("https://raw.githubusercontent.com/RFR-R1CH4RD/Loader/main/Salvatore.lua"))() 
-   end,
-})
+local function buyPremiumItem(player, itemId)
+    local success, error = pcall(function()
+        game:GetService("MarketplaceService"):PromptPurchase(player, itemId)
+    end)
+    
+    if success then
+        print(player.Name .. " has purchased the premium item.")
+    else
+        warn("Failed to purchase item: " .. error)
+    end
+end
 
-
-local Button = UniversalTab:CreateButton({
-   Name = "Tiger-X",
-   Callback = function()
-loadstring(game:HttpGet("https://raw.githubusercontent.com/balintTheDevX/Tiger-X-V3/main/Tiger%20X%20V3.5%20Fixed"))() 
-   end,
-})
-
-local Button = UniversalTab:CreateButton({
-   Name = "Black Hole",
-   Callback = function()
-   loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-FE-black-hole-18879"))()
-   end,
-})
-
-local Button = UniversalTab:CreateButton({
-   Name = "Y-Hub",
-   Callback = function()
-   loadstring(game:HttpGet("https://raw.githubusercontent.com/Luarmor123/community-Y-HUB/main/YHUB%20Brookhaven"))() 
-   end,
-})
-
-local Button = UniversalTab:CreateButton({
-   Name = "Ghub",
-   Callback = function()
-   loadstring(game:HttpGet("https://raw.githubusercontent.com/gclich/GHUBV15_X_ZENXOS-MAINLOADER/main/GHUB-X-ZENXOS-V15.txt"))() 
-   end,
-})
-
-local Button = UniversalTab:CreateButton({
-   Name = "Mango Hub",
-   Callback = function()
-   loadstring(game:HttpGet("https://raw.githubusercontent.com/rogelioajax/lua/main/MangoHub",true))() 
-   end,
-})
-
-local Button = UniversalTab:CreateButton({
-   Name = "Alexcirer",
-   Callback = function()
-   loadstring(game:HttpGet("https://raw.githubusercontent.com/Alexcirer/Alexcirer/main/V20"))() 
-   end,
-})
-
-local Button = UniversalTab:CreateButton({
-   Name = "Shadow Hub",
-   Callback = function()
-   loadstring(game:HttpGet("https://rawscripts.net/raw/Brookhaven-RP-Shadow-Hub"))()
-   end,
-})
-
-local Button = UniversalTab:CreateButton({
-   Name = "AstroXteam",
-   Callback = function()
-   loadstring(game:HttpGet("https://raw.githubusercontent.com/AstroXTeam/AstroXHubNeta/main/Testtt"))() 
-   end,
-})
-
-local Button = UniversalTab:CreateButton({
-   Name = "Davizin Hub",
-   Callback = function()
-   loadstring(game:HttpGet("https://raw.githubusercontent.com/Davizinhofprest/OaiaJaooBaodapega/main76e8bf16e68877f75%20(1).txt"))() 
-   end,
-})
-
-local Button = UniversalTab:CreateButton({
-   Name = "Zekrom Hub",
-   Callback = function()
-   loadstring(game:HttpGet("https://rawscripts.net/raw/Brookhaven-RP-ZEKROM-HUB-Zkm-23568"))() 
-   end,
-})
-
-local Button = UniversalTab:CreateButton({
-   Name = "SP Hub",
-   Callback = function()
-   loadstring(game:HttpGet("https://raw.githubusercontent.com/as6cd0/SP_Hub/main/Brookhaven"))() 
-   end,
-})
-
-local Button = UniversalTab:CreateButton({
-   Name = "Hyz0r Hub",
-   Callback = function()
-   loadstring(game:HttpGet("https://raw.githubusercontent.com/Hyz0r-Dev404/Hyz0/main/Working%25HyzOr-Hub.md"))() 
-   end,
-})
-
-local Button = UniversalTab:CreateButton({
-   Name = "Imperial Hub",
-   Callback = function()
-   loadstring(game:HttpGet("https://raw.githubusercontent.com/TrevOrZ/LoaderM/main/ImperiaHub-lWorking.lua"))() 
-   end,
-})
-
-local Button = UniversalTab:CreateButton({
-   Name = "New Sander X",
-   Callback = function()
-loadstring(game:HttpGet("https://raw.githubusercontent.com/kigredns/SanderXV4.2.2/main/NormalSS.lua"))() 
-   end,
-})
-
-local UniversalTab = Window:CreateTab("dead rails script", "globe")
-local Section = UniversalTab:CreateSection("script")
-
-local Button = Tab:CreateButton({
-   Name = "auto farm Bond ",
-   Callback = function()
-   loadstring(game:HttpGet("https://rawscripts.net/raw/Dead-Rails-Alpha-Auto-farm-bond-update-30591"))()
-   end,
-})
-
-local Button = Tab:CreateButton({
-   Name = "SpiderXHub",
-   Callback = function()
-   loadstring(game:HttpGet("https://raw.githubusercontent.com/SpiderScriptRB/Dead-Rails-SpiderXHub-Script/main/SpiderXHub%202.0.txt"))(),
-})
-
-local Button = Tab:CreateButton({
-   Name = "NEOXHUBMAIN",
-   Callback = function()
-   loadstring(game:HttpGet("https://raw.githubusercontent.com/hassanxzayn-lua/NEOXHUBMAIN/main/loader"))(),
-})
-
-local Button = Tab:CreateButton({
-   Name = "NatHub",
-   Callback = function()
-   loadstring(game:HttpGet("https://raw.githubusercontent.com/ArdyBotzz/NatHub/refs/heads/master/NatHub.lua"))()
-   end,
-})
-
-local Button = Tab:CreateButton({
-   Name = "SpineWare",
-   Callback = function()
-   loadstring(game:HttpGet("https://raw.githubusercontent.com/SpineWare/UniversalLoader/main/Load"))()
-   end,
-})
-
-local Button = Tab:CreateButton({
-   Name = "kiciahook",
-   Callback = function()
-   loadstring(game:HttpGet("https://raw.githubusercontent.com/kiciahook/kiciahook/main/loader.lua"))()
-   end,
-})
-
-local Button = Tab:CreateButton({
-   Name = "Zephyr",
-   Callback = function()
-   loadstring(game:HttpGet("https://raw.githubusercontent.com/Unknownlodfc/Zephyr/main/DeadRails/Main"))()
-   end,
-})
-
-local Button = Tab:CreateButton({
-   Name = "MicroHub",
-   Callback = function()
-   loadstring(game:HttpGet("https://raw.githubusercontent.com/TrustsenseDev/MicroHub/main/loader.lua"))()
-   end,
-})
-
-local Button = Tab:CreateButton({
-   Name = "DHHz-hub",
-   Callback = function()
-   loadstring(game:HttpGet("https://raw.githubusercontent.com/ducknovis/DHHz-hub/main/Dead-Rails.lua"))()
-   end,
-})
-
-local Button = Tab:CreateButton({
-   Name = "FernHub",
-   Callback = function()
-   loadstring(game:HttpGet("https://raw.githubusercontent.com/Mrpopcatfrombupge/FernHub/main/DeadRailsFarm"))()
-   end,
-})
-
-local Button = Tab:CreateButton({
-   Name = "TbaoHub",
-   Callback = function()
-   loadstring(game:HttpGet("https://raw.githubusercontent.com/tbao143/thaibao/main/TbaoHubDeadRails"))()
-   end,
-})
-
-local Button = Tab:CreateButton({
-   Name = "Solix",
-   Callback = function()
-   loadstring(game:HttpGet("https://raw.githubusercontent.com/debunked69/Solixreworkkeysystem/main/solix%20new%20keyui.lua"))()
-   end,
-})
+local function awardAchievement(player, achievement)
+    print(player.Name .. " has earned achievement: " .. achievement)
+    player:AwardBadge(123456789)
+end
 
 Rayfield:Notify({
-   Title = "Notification",
-   Content = "Mysterious Hub Successfully loaded",
-   Duration = 3,
-   Image = 10511856020,
+    Title = "Notification",
+    Content = "Login, Admin, and Creator features are now active!",
+    Duration = 3,
+    Image = 10511856020,
 })
+
+local function applyButtonHoverEffect(button)
+    button.MouseEnter:Connect(function()
+        button.BackgroundColor3 = Color3.fromRGB(100, 150, 255)
+        button.TextSize = 24
+    end)
+    
+    button.MouseLeave:Connect(function()
+        button.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        button.TextSize = 18
+    end)
+end
+
+local button = Window:CreateButton({
+    Name = "Test Button",
+    Callback = function()
+        print("Button Clicked!")
+    end,
+})
+
+applyButtonHoverEffect(button)
+
+local function changeBackground(timeOfDay)
+    local background = game.Players.LocalPlayer.PlayerGui:WaitForChild("Background")
+    if timeOfDay == "day" then
+        background.Image = "rbxassetid://daytime_background_id"
+    else
+        background.Image = "rbxassetid://nighttime_background_id"
+    end
+end
+
+changeBackground("day")
